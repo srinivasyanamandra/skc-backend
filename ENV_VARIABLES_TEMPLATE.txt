@@ -1,0 +1,52 @@
+================================================================================
+ENVIRONMENT VARIABLES FOR RENDER DEPLOYMENT
+Copy these to Render Dashboard → Environment Variables
+================================================================================
+
+# Spring Boot
+SPRING_PROFILES_ACTIVE=prod
+
+# Database (Get from Render PostgreSQL dashboard)
+DB_HOST=
+DB_PORT=5432
+DB_NAME=sri_karthikeya_caterers
+DB_USERNAME=
+DB_PASSWORD=
+
+# JWT (Generate secure random string)
+JWT_SECRET=
+JWT_EXPIRATION_MS=86400000
+
+# Admin
+ADMIN_EMAIL=admin@srikarthikeyacaterers.in
+ADMIN_PASSWORD=
+
+# SMTP (Hostinger)
+MAIL_HOST=smtp.hostinger.com
+MAIL_PORT=587
+MAIL_USERNAME=
+MAIL_PASSWORD=
+MAIL_FROM=info@srikarthikeyacaterers.in
+MAIL_FROM_NAME=Sri Karthikeya Caterers
+
+# URLs
+FRONTEND_URL=https://srikarthikeyacaterers.in
+REVIEW_LINK_BASE_URL=https://srikarthikeyacaterers.in/review
+CORS_ALLOWED_ORIGINS=https://srikarthikeyacaterers.in,https://www.srikarthikeyacaterers.in
+
+# Campaign
+CAMPAIGN_THROTTLE_PER_MINUTE=120
+CAMPAIGN_DEFAULT_BATCH_SIZE=50
+
+# Email Retry
+MAIL_RETRY_MAX_ATTEMPTS=2
+MAIL_RETRY_BACKOFF_MS=1000
+
+================================================================================
+NOTES:
+1. Fill in all blank values before deploying
+2. JWT_SECRET should be at least 32 characters
+3. Use strong password for ADMIN_PASSWORD
+4. Database credentials come from Render PostgreSQL dashboard
+5. SMTP credentials come from Hostinger email settings
+================================================================================

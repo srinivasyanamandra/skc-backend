@@ -1,0 +1,218 @@
+================================================================================
+RENDER.COM DEPLOYMENT GUIDE - Sri Karthikeya Caterers Backend
+================================================================================
+
+REPOSITORY: https://github.com/srinivasyanamandra/skc-backend
+
+================================================================================
+STEP 1: CREATE POSTGRESQL DATABASE
+================================================================================
+
+1. Go to Render Dashboard: https://dashboard.render.com
+2. Click "New +" → "PostgreSQL"
+3. Configure:
+   - Name: skc-database
+   - Database: sri_karthikeya_caterers
+   - User: (auto-generated)
+   - Region: Singapore (or your preferred region)
+   - Plan: Starter ($7/month) or Free
+4. Click "Create Database"
+5. Wait for database to be ready
+6. Note down the connection details (you'll need these for environment variables)
+
+================================================================================
+STEP 2: CREATE WEB SERVICE
+================================================================================
+
+1. Click "New +" → "Web Service"
+2. Connect your GitHub repository: srinivasyanamandra/skc-backend
+3. Configure:
+   - Name: skc-backend
+   - Region: Singapore (same as database)
+   - Branch: main
+   - Runtime: Docker
+   - Plan: Starter ($7/month) or Free
+
+================================================================================
+STEP 3: CONFIGURE ENVIRONMENT VARIABLES
+================================================================================
+
+In the "Environment" section, add these variables:
+
+--- Spring Boot Configuration ---
+SPRING_PROFILES_ACTIVE=prod
+
+--- Database Configuration ---
+DB_HOST=<from database internal connection>
+DB_PORT=5432
+DB_NAME=sri_karthikeya_caterers
+DB_USERNAME=<from database connection info>
+DB_PASSWORD=<from database connection info>
+
+--- JWT Configuration ---
+JWT_SECRET=<generate a secure random string, min 32 characters>
+JWT_EXPIRATION_MS=86400000
+
+--- Admin Credentials ---
+ADMIN_EMAIL=admin@srikarthikeyacaterers.in
+ADMIN_PASSWORD=<your secure admin password>
+
+--- SMTP Configuration (Hostinger) ---
+MAIL_HOST=smtp.hostinger.com
+MAIL_PORT=587
+MAIL_USERNAME=<your email username>
+MAIL_PASSWORD=<your email password>
+MAIL_FROM=info@srikarthikeyacaterers.in
+MAIL_FROM_NAME=Sri Karthikeya Caterers
+
+--- Application URLs ---
+FRONTEND_URL=https://srikarthikeyacaterers.in
+REVIEW_LINK_BASE_URL=https://srikarthikeyacaterers.in/review
+CORS_ALLOWED_ORIGINS=https://srikarthikeyacaterers.in,https://www.srikarthikeyacaterers.in
+
+--- Campaign Configuration ---
+CAMPAIGN_THROTTLE_PER_MINUTE=120
+CAMPAIGN_DEFAULT_BATCH_SIZE=50
+
+--- Email Retry Configuration ---
+MAIL_RETRY_MAX_ATTEMPTS=2
+MAIL_RETRY_BACKOFF_MS=1000
+
+================================================================================
+STEP 4: DEPLOY
+================================================================================
+
+1. Click "Create Web Service"
+2. Render will automatically:
+   - Clone your repository
+   - Build the Docker image
+   - Deploy the container
+   - Assign a URL (e.g., https://skc-backend.onrender.com)
+
+3. Monitor the deployment logs for any errors
+4. Wait for "Live" status (first deploy takes 5-10 minutes)
+
+================================================================================
+STEP 5: VERIFY DEPLOYMENT
+================================================================================
+
+1. Check health endpoint:
+   https://your-app.onrender.com/actuator/health
+   
+   Expected response:
+   {"status":"UP"}
+
+2. Test API:
+   https://your-app.onrender.com/api/subscribe
+   
+   Should return 405 Method Not Allowed (POST required)
+
+3. Check logs in Render dashboard for any errors
+
+================================================================================
+STEP 6: UPDATE FRONTEND
+================================================================================
+
+Update your frontend environment variable:
+REACT_APP_API_URL=https://your-app.onrender.com
+
+================================================================================
+IMPORTANT NOTES
+================================================================================
+
+1. FREE TIER LIMITATIONS:
+   - Services spin down after 15 minutes of inactivity
+   - First request after spin-down takes 30-60 seconds
+   - Database has 90-day expiry on free tier
+   - Upgrade to Starter plan for production use
+
+2. CUSTOM DOMAIN (Optional):
+   - Go to Settings → Custom Domain
+   - Add your domain (e.g., api.srikarthikeyacaterers.in)
+   - Update DNS records as instructed
+   - SSL certificate is automatic
+
+3. MONITORING:
+   - Metrics: https://your-app.onrender.com/actuator/metrics
+   - Prometheus: https://your-app.onrender.com/actuator/prometheus
+   - Logs: Available in Render dashboard
+
+4. SCALING:
+   - Vertical: Upgrade plan for more CPU/RAM
+   - Horizontal: Add more instances (paid plans only)
+
+5. DATABASE BACKUPS:
+   - Automatic daily backups on paid plans
+   - Manual backups: Dashboard → Database → Backups
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+1. BUILD FAILS:
+   - Check Dockerfile syntax
+   - Verify pom.xml dependencies
+   - Check build logs in Render dashboard
+
+2. DEPLOYMENT FAILS:
+   - Verify all environment variables are set
+   - Check database connection
+   - Review application logs
+
+3. HEALTH CHECK FAILS:
+   - Ensure PORT environment variable is used
+   - Check if application started successfully
+   - Verify database migrations completed
+
+4. EMAIL NOT SENDING:
+   - Verify SMTP credentials
+   - Check Hostinger SMTP settings
+   - Review email logs in application
+
+5. DATABASE CONNECTION ISSUES:
+   - Verify DB_HOST, DB_PORT, DB_NAME
+   - Check database is in same region
+   - Ensure database is running
+
+================================================================================
+USEFUL COMMANDS
+================================================================================
+
+View logs:
+- Render Dashboard → Logs tab
+
+Restart service:
+- Render Dashboard → Manual Deploy → Clear build cache & deploy
+
+Connect to database:
+- Use connection string from database dashboard
+- Or use Render's built-in SQL editor
+
+================================================================================
+COST ESTIMATE (Monthly)
+================================================================================
+
+Free Tier:
+- Web Service: $0 (with limitations)
+- PostgreSQL: $0 (90-day limit)
+Total: $0
+
+Starter Plan:
+- Web Service: $7/month
+- PostgreSQL: $7/month
+Total: $14/month
+
+Standard Plan:
+- Web Service: $25/month
+- PostgreSQL: $20/month
+Total: $45/month
+
+================================================================================
+SUPPORT
+================================================================================
+
+Render Documentation: https://render.com/docs
+Render Community: https://community.render.com
+Status Page: https://status.render.com
+
+================================================================================
