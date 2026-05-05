@@ -1,0 +1,59 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.idea
+.vscode
+*.iml
+*.ipr
+*.iws
+
+# Build artifacts
+target/
+!target/*.jar
+build/
+out/
+
+# Maven
+.mvn/wrapper/maven-wrapper.jar
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation (not needed in container)
+*.md
+!README.md
+
+# Test files
+src/test/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# Node modules (if any)
+node_modules/
+
+# Database files
+*.db
+*.sqlite
+
+# Secrets
+*.pem
+*.key
+*.crt
+secrets/
