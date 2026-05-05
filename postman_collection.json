@@ -1,0 +1,214 @@
+{
+  "info": {
+    "name": "Sri Karthikeya Caterers API",
+    "description": "Complete API collection for Sri Karthikeya Caterers backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Public APIs",
+      "item": [
+        {
+          "name": "Submit Quote Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Priya Sharma\",\n  \"email\": \"priya@example.com\",\n  \"phone\": \"+91 98765 43211\",\n  \"eventType\": \"wedding\",\n  \"eventDate\": \"2026-09-14\",\n  \"guests\": 500,\n  \"venue\": \"Grand Palace, Hyderabad\",\n  \"budget\": \"₹5,00,000\",\n  \"message\": \"Pure-veg banquet, four live counters.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/public/quotes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "public", "quotes"]
+            }
+          }
+        },
+        {
+          "name": "Subscribe to Newsletter",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"priya@example.com\",\n  \"name\": \"Priya Sharma\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/public/subscribe",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "public", "subscribe"]
+            }
+          }
+        },
+        {
+          "name": "Get Review Invitation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/public/reviews/:token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "public", "reviews", ":token"],
+              "variable": [
+                {
+                  "key": "token",
+                  "value": "your-review-token-here"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Submit Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviewerName\": \"Priya Sharma\",\n  \"overallRating\": 5,\n  \"foodQualityRating\": 5,\n  \"tasteRating\": 5,\n  \"presentationRating\": 4,\n  \"staffBehaviorRating\": 5,\n  \"timelinessRating\": 5,\n  \"serviceQualityRating\": 5,\n  \"comments\": \"Genuinely the best veg catering we've used.\",\n  \"suggestions\": \"More live mocktail variety.\",\n  \"recommend\": \"yes\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/public/reviews/:token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "public", "reviews", ":token"],
+              "variable": [
+                {
+                  "key": "token",
+                  "value": "your-review-token-here"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Public Reviews",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/public/reviews?page=0&limit=24&minRating=4",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "public", "reviews"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "limit",
+                  "value": "24"
+                },
+                {
+                  "key": "minRating",
+                  "value": "4"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Featured Reviews",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/public/reviews/featured?limit=6",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "public", "reviews", "featured"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "6"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin APIs",
+      "item": [
+        {
+          "name": "Admin Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set(\"token\", jsonData.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"info@srikarthikeyacaterers.in\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "dashboard"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

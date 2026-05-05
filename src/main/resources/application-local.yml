@@ -1,0 +1,110 @@
+spring:
+  application:
+    name: sri-karthikeya-caterers-backend
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/sri_karthikeya_caterers
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    show-sql: true
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        format_sql: true
+  
+  mail:
+    host: ${MAIL_HOST:smtp.hostinger.com}
+    port: ${MAIL_PORT:465}
+    username: ${MAIL_USERNAME:info@srikarthikeyacaterers.in}
+    password: ${MAIL_PASSWORD:Srinu19#2004}
+    protocol: smtp
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+            trust: ${MAIL_HOST:smtp.hostinger.com}
+          starttls:
+            enable: false
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
+  
+  task:
+    execution:
+      pool:
+        core-size: 2
+        max-size: 8
+        queue-capacity: 200
+      thread-name-prefix: async-email-
+
+server:
+  port: 8080
+  forward-headers-strategy: framework
+  error:
+    include-message: always
+    include-binding-errors: always
+
+cors:
+  allowed-origins:
+    - http://localhost:3000
+    - http://localhost:5173
+
+# Application-specific configuration
+admin:
+  emails:
+    - info@srikarthikeyacaterers.in
+    - srinivas.yanamandra04@gmail.com
+  passwords:
+    - ${ADMIN_PASSWORD:Srinu19#}
+    - ${ADMIN_PASSWORD_2:Srinu19#}
+
+jwt:
+  secret: ${JWT_SECRET:your-secret-key-must-be-at-least-32-bytes-long-for-hs256}
+  expiration: 86400000  # 24 hours in milliseconds
+
+review:
+  link:
+    default-expires-days: 14
+    base-url: ${REVIEW_BASE_URL:http://localhost:3000}
+
+campaign:
+  throttle:
+    per-minute: 120
+  default-batch-size: 50
+  scheduler:
+    poll-interval-ms: 30000   # how often the scheduler scans for queued campaigns
+
+mail:
+  from: ${MAIL_FROM:info@srikarthikeyacaterers.in}
+  from-name: ${MAIL_FROM_NAME:Sri Karthikeya Caterers}
+  retry:
+    max-attempts: 2
+    backoff-ms: 1000
+  # Set to true to disable actual email sending (for testing)
+  disabled: ${MAIL_DISABLED:false}
+
+logging:
+  level:
+    root: INFO
+    syncqubits.ai.skc: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# Debug endpoints (enabled in local)
+debug:
+  endpoints:
+    enabled: true

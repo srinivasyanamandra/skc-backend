@@ -1,0 +1,118 @@
+{
+  "info": {
+    "name": "Review Link Testing",
+    "description": "Test the review invitation link flow",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Validate Review Token (GET)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/public/reviews/CuZB0QYs4sn_0ABnFv_NQQtQJhiNx22_3zDyzfj6zWk",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "public", "reviews", "CuZB0QYs4sn_0ABnFv_NQQtQJhiNx22_3zDyzfj6zWk"]
+        },
+        "description": "Validates the review invitation token and returns invitation details"
+      },
+      "response": []
+    },
+    {
+      "name": "2. Submit Review (POST)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reviewerName\": \"Srinivas Yanamandra\",\n  \"overallRating\": 5,\n  \"foodQualityRating\": 5,\n  \"tasteRating\": 5,\n  \"presentationRating\": 5,\n  \"staffBehaviorRating\": 5,\n  \"timelinessRating\": 5,\n  \"serviceQualityRating\": 5,\n  \"comments\": \"Excellent service and delicious food! The presentation was outstanding.\",\n  \"suggestions\": \"More vegetarian options would be great.\",\n  \"recommend\": \"yes\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/public/reviews/CuZB0QYs4sn_0ABnFv_NQQtQJhiNx22_3zDyzfj6zWk",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "public", "reviews", "CuZB0QYs4sn_0ABnFv_NQQtQJhiNx22_3zDyzfj6zWk"]
+        },
+        "description": "Submits a review using the invitation token"
+      },
+      "response": []
+    },
+    {
+      "name": "3. Try Token Again (Should Fail)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/public/reviews/CuZB0QYs4sn_0ABnFv_NQQtQJhiNx22_3zDyzfj6zWk",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "public", "reviews", "CuZB0QYs4sn_0ABnFv_NQQtQJhiNx22_3zDyzfj6zWk"]
+        },
+        "description": "Attempts to use the token again - should return 410 Gone"
+      },
+      "response": []
+    },
+    {
+      "name": "4. Get Public Reviews",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/public/reviews/public?page=0&limit=24&minRating=4",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "public", "reviews", "public"],
+          "query": [
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "limit",
+              "value": "24"
+            },
+            {
+              "key": "minRating",
+              "value": "4"
+            }
+          ]
+        },
+        "description": "Gets all public reviews (approved and published)"
+      },
+      "response": []
+    },
+    {
+      "name": "5. Get Featured Reviews",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/public/reviews/featured?limit=6",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "public", "reviews", "featured"],
+          "query": [
+            {
+              "key": "limit",
+              "value": "6"
+            }
+          ]
+        },
+        "description": "Gets featured reviews for homepage"
+      },
+      "response": []
+    }
+  ]
+}
