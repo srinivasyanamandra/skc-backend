@@ -131,13 +131,21 @@ CREATE TABLE IF NOT EXISTS email_campaigns (
     scheduled_at        TIMESTAMPTZ,
     started_at          TIMESTAMPTZ,
     completed_at        TIMESTAMPTZ,
+    locked_at           TIMESTAMPTZ,
+    locked_by           VARCHAR(64),
     created_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at          TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
+-- Idempotent column adds for environments upgraded before this code shipped.
+ALTER TABLE email_campaigns ADD COLUMN IF NOT EXISTS locked_at TIMESTAMPTZ;
+ALTER TABLE email_campaigns ADD COLUMN IF NOT EXISTS locked_by VARCHAR(64);
+
 CREATE INDEX IF NOT EXISTS idx_campaigns_status   ON email_campaigns(status);
 CREATE INDEX IF NOT EXISTS idx_campaigns_schedule ON email_campaigns(scheduled_at) WHERE status = 'QUEUED';
 CREATE INDEX IF NOT EXISTS idx_campaigns_created  ON email_campaigns(created_at DESC);
+-- Drives the atomic-claim query (status + lock state + due time).
+CREATE INDEX IF NOT EXISTS idx_campaigns_lock     ON email_campaigns(status, locked_at, scheduled_at);
 
 -- Table 7: System Logs
 CREATE TABLE IF NOT EXISTS system_logs (

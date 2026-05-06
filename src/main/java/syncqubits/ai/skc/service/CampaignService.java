@@ -55,6 +55,17 @@ public class CampaignService {
     @Value("${campaign.default-batch-size:50}")
     private int defaultBatchSize;
 
+    /** Lock TTL for stale-dispatcher recovery (default 15 minutes). After
+        this much wall-clock time, a SENDING campaign with no recent lock
+        update is considered abandoned and may be re-claimed. */
+    @Value("${campaign.scheduler.stale-lock-minutes:15}")
+    private int staleLockMinutes;
+
+    /** Stable identifier for this JVM instance; written to {@code locked_by}
+        on every claim so we can audit which dispatcher worked which run. */
+    private static final String INSTANCE_ID =
+            "jvm-" + UUID.randomUUID().toString().substring(0, 8);
+
     /* ============================================================== queries */
 
     public PageResponse<CampaignSummary> list(String status, String q, int page, int size,
@@ -426,120 +437,208 @@ public class CampaignService {
     }
 
     /**
-     * Iterates the materialised recipient list, sending each email via {@link EmailService}.
-     * Per-batch saves persist sent_count / failed_count + recipient delivery state.
-     * Honours cancellation by re-reading the campaign between batches.
+     * Iterates the materialised recipient list, sending each email via
+     * {@link EmailService}. Per-batch saves persist {@code sentCount} /
+     * {@code failedCount} and per-recipient delivery state.
+     *
+     * <h3>Concurrency / idempotency</h3>
+     * The first thing this method does is an atomic
+     * {@link EmailCampaignRepository#tryClaim} — a single SQL {@code UPDATE
+     * … WHERE locked_at IS NULL OR locked_at < :staleBefore}. If 0 rows
+     * are affected, another dispatcher (or another instance) already owns
+     * this campaign and we return without sending anything. This makes
+     * {@code dispatchAsync} idempotent: invoking it twice is harmless.
+     *
+     * <h3>Subscriber freshness</h3>
+     * Audiences are snapshotted at campaign creation time. By the time the
+     * dispatcher runs, individual subscribers may have unsubscribed. Before
+     * each send to a {@code kind=='subscriber'} recipient, we re-read the
+     * subscriber and skip them with reason {@code subscriber_unsubscribed}
+     * if {@code is_active=false}. This honours the unsubscribe contract
+     * even for queued campaigns.
+     *
+     * <h3>Cancellation</h3>
+     * Between batches, we re-read the campaign and bail if status was set
+     * to {@code CANCELLED}. The lock is then released on the way out.
+     *
+     * <h3>Resume safety</h3>
+     * Each per-recipient delivery state lives in the JSONB column. On
+     * re-dispatch (after a crash or stale-lock recovery), entries with
+     * {@code deliveryStatus='sent'} are skipped — at-most-once per recipient.
      */
     public void dispatch(UUID id) {
-        EmailCampaign c = emailCampaignRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Campaign " + id + " not found"));
+        Instant now = Instant.now();
+        Instant staleBefore = now.minus(java.time.Duration.ofMinutes(Math.max(1, staleLockMinutes)));
 
-        if (c.getStatus() != EmailCampaign.CampaignStatus.QUEUED
-                && c.getStatus() != EmailCampaign.CampaignStatus.SENDING) {
-            log.info("Campaign {} not eligible for dispatch (status={})", id, c.getStatus());
+        // Atomic claim — single UPDATE … WHERE. Returns 1 if we won the
+        // lock, 0 if somebody else holds it (or the campaign isn't due).
+        int claimed = emailCampaignRepository.tryClaim(id, now, staleBefore, INSTANCE_ID);
+        if (claimed == 0) {
+            log.info("Campaign {} not eligible for dispatch by {} (already claimed or not due)",
+                    id, INSTANCE_ID);
             return;
         }
+        log.info("Campaign {} claimed by dispatcher {}", id, INSTANCE_ID);
 
-        c.setStatus(EmailCampaign.CampaignStatus.SENDING);
-        if (c.getStartedAt() == null) c.setStartedAt(Instant.now());
-        emailCampaignRepository.save(c);
+        boolean releaseLockOnExit = true;
+        try {
+            EmailCampaign c = emailCampaignRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Campaign " + id + " not found"));
 
-        int throttlePerMinute = throttleFor(c);
-        long throttleDelayMs = throttlePerMinute > 0 ? Math.max(0, 60_000L / throttlePerMinute) : 0;
+            int throttlePerMinute = throttleFor(c);
+            long throttleDelayMs = throttlePerMinute > 0 ? Math.max(0, 60_000L / throttlePerMinute) : 0;
 
-        List<Map<String, Object>> recipients = c.getRecipients() == null
-                ? new ArrayList<>() : new ArrayList<>(c.getRecipients());
+            List<Map<String, Object>> recipients = c.getRecipients() == null
+                    ? new ArrayList<>() : new ArrayList<>(c.getRecipients());
 
-        int sent = c.getSentCount() == null ? 0 : c.getSentCount();
-        int failed = c.getFailedCount() == null ? 0 : c.getFailedCount();
-        int batchSize = Math.max(1, defaultBatchSize);
-        int sinceLastSave = 0;
+            int sent    = c.getSentCount()   == null ? 0 : c.getSentCount();
+            int failed  = c.getFailedCount() == null ? 0 : c.getFailedCount();
+            int skipped = 0;
+            int batchSize = Math.max(1, defaultBatchSize);
+            int sinceLastSave = 0;
 
-        for (int i = 0; i < recipients.size(); i++) {
-            // Cancel check between recipients (cheap, no extra DB hit beyond what we already do per batch)
-            if (sinceLastSave == 0) {
-                EmailCampaign refreshed = emailCampaignRepository.findById(id).orElse(null);
-                if (refreshed == null
-                        || refreshed.getStatus() == EmailCampaign.CampaignStatus.CANCELLED) {
-                    log.info("Campaign {} cancelled mid-flight; stopping at index {}", id, i);
-                    return;
+            for (int i = 0; i < recipients.size(); i++) {
+                /* Cancel check at every batch boundary — cheap and gives a
+                   bounded-latency stop on admin Cancel actions. */
+                if (sinceLastSave == 0) {
+                    EmailCampaign refreshed = emailCampaignRepository.findById(id).orElse(null);
+                    if (refreshed == null
+                            || refreshed.getStatus() == EmailCampaign.CampaignStatus.CANCELLED) {
+                        log.info("Campaign {} cancelled mid-flight; stopping at index {}", id, i);
+                        return; // finally{} releases the lock
+                    }
                 }
-            }
 
-            Map<String, Object> entry = recipients.get(i);
-            String prevDelivery = (String) entry.get("deliveryStatus");
-            if ("sent".equals(prevDelivery)) {
-                continue; // resume-safe
-            }
+                Map<String, Object> entry = recipients.get(i);
+                String prevDelivery = (String) entry.get("deliveryStatus");
 
-            try {
-                EmailTemplate template = resolveTemplateForEntry(c, entry);
-                Map<String, Object> vars = mergeVariables(c, entry);
-                RenderedEmail rendered = emailService.render(template, vars);
+                /* Resume-safe: if a previous run already sent to this
+                   recipient (e.g. the dispatcher crashed mid-flight and
+                   we're a stale-lock recovery), skip them. At-most-once
+                   per recipient per campaign. */
+                if ("sent".equals(prevDelivery) || "skipped".equals(prevDelivery)) {
+                    continue;
+                }
 
-                String email = (String) entry.get("email");
-                String name  = (String) entry.get("name");
+                /* Subscriber-freshness check — honour unsubscribes that
+                   happened between schedule time and send time. */
+                if ("subscriber".equalsIgnoreCase(String.valueOf(entry.get("kind")))) {
+                    Object idObj = entry.get("id");
+                    if (idObj != null) {
+                        try {
+                            UUID sid = UUID.fromString(idObj.toString());
+                            Subscriber s = subscriberRepository.findById(sid).orElse(null);
+                            if (s == null || !Boolean.TRUE.equals(s.getIsActive())) {
+                                entry.put("deliveryStatus", "skipped");
+                                entry.put("skipReason", "subscriber_unsubscribed");
+                                skipped++;
+                                sinceLastSave++;
+                                if (sinceLastSave >= batchSize || i == recipients.size() - 1) {
+                                    c.setRecipients(recipients);
+                                    c.setSentCount(sent);
+                                    c.setFailedCount(failed);
+                                    emailCampaignRepository.save(c);
+                                    sinceLastSave = 0;
+                                }
+                                continue;
+                            }
+                        } catch (IllegalArgumentException ignore) { /* malformed id; fall through to send attempt */ }
+                    }
+                }
 
-                EmailSendResult result = emailService.sendRendered(
-                        rendered, email, name, template.getId(), "email_campaign", c.getId());
+                try {
+                    EmailTemplate template = resolveTemplateForEntry(c, entry);
+                    Map<String, Object> vars = mergeVariables(c, entry);
+                    RenderedEmail rendered = emailService.render(template, vars);
 
-                if (result.isSuccess()) {
-                    entry.put("deliveryStatus", "sent");
-                    entry.put("sentAt", Instant.now().toString());
-                    if (result.getMessageId() != null) entry.put("messageId", result.getMessageId());
-                    entry.remove("error");
-                    sent++;
-                } else {
+                    String email = (String) entry.get("email");
+                    String name  = (String) entry.get("name");
+
+                    EmailSendResult result = emailService.sendRendered(
+                            rendered, email, name, template.getId(), "email_campaign", c.getId());
+
+                    if (result.isSuccess()) {
+                        entry.put("deliveryStatus", "sent");
+                        entry.put("sentAt", Instant.now().toString());
+                        if (result.getMessageId() != null) entry.put("messageId", result.getMessageId());
+                        entry.remove("error");
+                        sent++;
+                    } else {
+                        entry.put("deliveryStatus", "failed");
+                        entry.put("error", result.getError() == null ? "send_failed" : result.getError());
+                        failed++;
+                    }
+                } catch (Exception e) {
+                    log.warn("Campaign {} send to entry {} failed", id, entry.get("email"), e);
                     entry.put("deliveryStatus", "failed");
-                    entry.put("error", result.getError() == null ? "send_failed" : result.getError());
+                    entry.put("error", e.getMessage());
                     failed++;
                 }
-            } catch (Exception e) {
-                log.warn("Campaign {} send to entry {} failed", id, entry.get("email"), e);
-                entry.put("deliveryStatus", "failed");
-                entry.put("error", e.getMessage());
-                failed++;
+
+                sinceLastSave++;
+                if (sinceLastSave >= batchSize || i == recipients.size() - 1) {
+                    c.setRecipients(recipients);
+                    c.setSentCount(sent);
+                    c.setFailedCount(failed);
+                    emailCampaignRepository.save(c);
+                    sinceLastSave = 0;
+                }
+
+                if (throttleDelayMs > 0) {
+                    try { Thread.sleep(throttleDelayMs); }
+                    catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        log.warn("Campaign {} dispatch interrupted; lock will be released", id);
+                        break;
+                    }
+                }
             }
 
-            sinceLastSave++;
-            if (sinceLastSave >= batchSize || i == recipients.size() - 1) {
-                c.setRecipients(recipients);
-                c.setSentCount(sent);
-                c.setFailedCount(failed);
-                emailCampaignRepository.save(c);
-                sinceLastSave = 0;
+            EmailCampaign refreshed = emailCampaignRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Campaign vanished mid-flight"));
+            if (refreshed.getStatus() == EmailCampaign.CampaignStatus.CANCELLED) {
+                return; // finally releases lock
             }
 
-            if (throttleDelayMs > 0) {
-                try { Thread.sleep(throttleDelayMs); }
-                catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
+            boolean anySuccess = sent > 0;
+            boolean allFailed  = failed > 0 && sent == 0 && skipped == 0 && !recipients.isEmpty();
+
+            refreshed.setRecipients(recipients);
+            refreshed.setSentCount(sent);
+            refreshed.setFailedCount(failed);
+            refreshed.setCompletedAt(Instant.now());
+            refreshed.setStatus(allFailed
+                    ? EmailCampaign.CampaignStatus.FAILED
+                    : EmailCampaign.CampaignStatus.SENT);
+            emailCampaignRepository.save(refreshed);
+
+            Map<String, Object> details = new HashMap<>();
+            details.put("sentCount", sent);
+            details.put("failedCount", failed);
+            details.put("skippedCount", skipped);
+            details.put("totalRecipients", recipients.size());
+            details.put("dispatcherInstanceId", INSTANCE_ID);
+            systemLogService.logCampaign(
+                    refreshed.getStatus() == EmailCampaign.CampaignStatus.SENT ? "completed" : "failed",
+                    anySuccess ? "success" : "failed",
+                    refreshed.getId(), details);
+
+            if (skipped > 0) {
+                log.info("Campaign {} completed: sent={}, failed={}, skipped={} (unsubscribed at send time)",
+                        id, sent, failed, skipped);
+            }
+        } finally {
+            if (releaseLockOnExit) {
+                try {
+                    emailCampaignRepository.releaseLock(id);
+                } catch (Exception releaseEx) {
+                    /* Lock release failure is non-fatal — the stale-lock
+                       TTL will recover the row. Log it for visibility. */
+                    log.warn("Failed to release dispatch lock on campaign {}: {}",
+                            id, releaseEx.getMessage());
+                }
             }
         }
-
-        EmailCampaign refreshed = emailCampaignRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Campaign vanished mid-flight"));
-        if (refreshed.getStatus() == EmailCampaign.CampaignStatus.CANCELLED) {
-            return;
-        }
-
-        boolean anySuccess = sent > 0;
-        boolean allFailed = failed > 0 && sent == 0 && recipients.size() > 0;
-
-        refreshed.setRecipients(recipients);
-        refreshed.setSentCount(sent);
-        refreshed.setFailedCount(failed);
-        refreshed.setCompletedAt(Instant.now());
-        refreshed.setStatus(allFailed ? EmailCampaign.CampaignStatus.FAILED : EmailCampaign.CampaignStatus.SENT);
-        emailCampaignRepository.save(refreshed);
-
-        Map<String, Object> details = new HashMap<>();
-        details.put("sentCount", sent);
-        details.put("failedCount", failed);
-        details.put("totalRecipients", recipients.size());
-        systemLogService.logCampaign(
-                refreshed.getStatus() == EmailCampaign.CampaignStatus.SENT ? "completed" : "failed",
-                anySuccess ? "success" : "failed",
-                refreshed.getId(), details);
     }
 
     /* ============================================================ send-one */
