@@ -37,6 +37,16 @@ public final class BrandedEmailLayout {
     public static final String BRAND_TAGLINE  = "Pure-vegetarian catering, served with quiet excellence.";
     public static final String BRAND_ADDRESS  = "Hyderabad, Telangana, India";
 
+    /**
+     * Canonical public URL for the brand. Centralised here so we don't
+     * sprinkle the domain across email markup. Matches the CORS allow-list
+     * and the FRONTEND_URL env-var default. If the domain ever changes,
+     * update this single constant — every transactional email picks it
+     * up on the next deploy.
+     */
+    public static final String BRAND_URL      = "https://srikarthikeyacaterers.in";
+    public static final String BRAND_URL_HOST = "srikarthikeyacaterers.in";
+
     private BrandedEmailLayout() {}
 
     /**
@@ -103,9 +113,9 @@ public final class BrandedEmailLayout {
             +         "<div style=\"margin-top:6px;\">" + BRAND_ADDRESS + "</div>"
             +         "<div style=\"margin-top:14px;\">"
             +           "You are receiving this email because you subscribed at "
-            +           "<a href=\"https://srikarthikeyacaterers.com\" "
+            +           "<a href=\"" + BRAND_URL + "\" "
             +             "style=\"color:" + COLOR_ACCENT + ";text-decoration:none;\">"
-            +             "srikarthikeyacaterers.com"
+            +             BRAND_URL_HOST
             +           "</a>."
             +         "</div>"
             +         "<div style=\"margin-top:6px;\">"
@@ -135,7 +145,7 @@ public final class BrandedEmailLayout {
             + "------------------------------\n"
             + BRAND_NAME + " — " + BRAND_TAGLINE + "\n"
             + BRAND_ADDRESS + "\n"
-            + "https://srikarthikeyacaterers.com\n\n"
+            + BRAND_URL + "\n\n"
             + "If you'd prefer not to hear from us, simply reply with 'unsubscribe'.\n"
             + "© {{year}} " + BRAND_NAME + ". All rights reserved.\n";
     }

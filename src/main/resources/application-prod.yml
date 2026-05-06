@@ -138,7 +138,11 @@ mail:
 
 review:
   link:
-    base-url: ${REVIEW_LINK_BASE_URL:https://srikarthikeyacaterers.in/review}
+    # Bare frontend origin only — buildReviewLink() appends "/feedback?t=…"
+    # automatically. Any trailing slash or legacy /review|/feedback suffix
+    # is defensively stripped at runtime, but configuring it cleanly here
+    # avoids the double-segment bug we hit in production.
+    base-url: ${REVIEW_LINK_BASE_URL:https://srikarthikeyacaterers.in}
     expiry-days: 90
 
 campaign:

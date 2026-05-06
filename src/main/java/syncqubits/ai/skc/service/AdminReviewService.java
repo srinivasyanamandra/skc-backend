@@ -22,13 +22,18 @@ import syncqubits.ai.skc.exception.ResourceNotFoundException;
 import syncqubits.ai.skc.repository.ClientRepository;
 import syncqubits.ai.skc.repository.EmailTemplateRepository;
 import syncqubits.ai.skc.repository.ReviewRepository;
+import syncqubits.ai.skc.service.email.BrandedEmailLayout;
 import syncqubits.ai.skc.util.NameUtils;
 import syncqubits.ai.skc.util.TokenGenerator;
 
 import java.time.Instant;
+import java.time.Year;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -84,16 +89,32 @@ public class AdminReviewService {
         String reviewLink = buildReviewLink(token);
         String displayName = NameUtils.resolveDisplayName(client.getName(), client.getEmail());
         String firstName   = NameUtils.resolveFirstName(client.getName(), client.getEmail());
+
+        /* Human-friendly date strings — the backend stores ISO 8601 instants
+           but recipients want "22 June 2025", not "2025-06-22T18:30:00Z". */
+        DateTimeFormatter prettyDate = DateTimeFormatter
+                .ofPattern("d MMMM yyyy", Locale.ENGLISH)
+                .withZone(ZoneId.of("Asia/Kolkata"));
+        String prettyExpiry = prettyDate.format(expiresAt);
+        String prettyEventDate = invitation.getEventDate() == null
+                ? ""
+                : invitation.getEventDate()
+                    .format(DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ENGLISH));
+
         Map<String, Object> vars = new HashMap<>();
         vars.put("clientName",  displayName);
         vars.put("name",        displayName);
         vars.put("firstName",   firstName);
         vars.put("clientEmail", client.getEmail());
         vars.put("eventType",   invitation.getEventType());
-        vars.put("eventDate",   invitation.getEventDate().toString());
+        vars.put("eventDate",   prettyEventDate);
         vars.put("reviewLink",  reviewLink);
         vars.put("token",       token);
-        vars.put("expiresAt",   expiresAt.toString());
+        vars.put("expiresAt",   prettyExpiry);
+        // Brand-level placeholders consumed by BrandedEmailLayout's footer
+        // ("© {{year}} {{brand}}…") and the body's signature line.
+        vars.put("brand",       BrandedEmailLayout.BRAND_NAME);
+        vars.put("year",        String.valueOf(Year.now().getValue()));
 
         Map<String, Object> details = new HashMap<>();
         details.put("clientId", client.getId().toString());
@@ -327,9 +348,30 @@ public class AdminReviewService {
         throw new IllegalStateException("Failed to generate unique invitation token after 5 attempts");
     }
 
+    /**
+     * Build the public review-submission URL for an invitation token.
+     *
+     * <p>The frontend exposes the feedback form at {@code /feedback} under
+     * path-based routing. Earlier hash-based routing used
+     * {@code /#feedback?t=…}; the legacy form is still migrated client-side
+     * by {@code useLegacyHashRedirect} so old emails keep working, but new
+     * emails should ship the canonical path-based URL directly.
+     *
+     * <p>{@code review.link.base-url} should be set to the bare frontend
+     * origin (e.g. {@code https://srikarthikeyacaterers.in}). Any trailing
+     * slashes — and the legacy {@code /review} or {@code /feedback} segment
+     * if mistakenly appended — are stripped here so the resulting URL is
+     * always exactly one canonical {@code /feedback?t=<token>}.
+     */
     private String buildReviewLink(String token) {
-        String base = reviewBaseUrl == null ? "" : reviewBaseUrl.replaceAll("/+$", "");
-        return base + "/#feedback?t=" + token;
+        String base = reviewBaseUrl == null ? "" : reviewBaseUrl.trim();
+        // Strip trailing slashes
+        base = base.replaceAll("/+$", "");
+        // Defensive: if an older deployment still has REVIEW_LINK_BASE_URL
+        // configured with a "/review" or "/feedback" suffix, drop it so we
+        // don't double-up.
+        base = base.replaceAll("(?i)/(review|feedback)/?$", "");
+        return base + "/feedback?t=" + token;
     }
 
     private Review loadSubmittedReview(UUID id) {
