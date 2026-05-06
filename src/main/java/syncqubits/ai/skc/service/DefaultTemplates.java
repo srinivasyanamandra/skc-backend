@@ -1,6 +1,7 @@
 package syncqubits.ai.skc.service;
 
 import syncqubits.ai.skc.entity.EmailTemplate;
+import syncqubits.ai.skc.service.email.BrandedEmailLayout;
 
 import java.util.Map;
 
@@ -33,6 +34,34 @@ public final class DefaultTemplates {
                 .build();
     }
 
+    /**
+     * Hard-coded fallback for the newsletter "Thank you for subscribing" email.
+     * Resolution order in services: code {@code SUBSCRIBE} →
+     * type {@code SUBSCRIBE_THANK_YOU} → this default.
+     *
+     * Variables: {@code clientName}, {@code firstName}, {@code email},
+     * {@code brand}, {@code year}.
+     */
+    public static EmailTemplate subscribeThankYou() {
+        return EmailTemplate.builder()
+                .name("__default_subscribe_thank_you__")
+                .code("SUBSCRIBE")
+                .type(EmailTemplate.TemplateType.SUBSCRIBE_THANK_YOU)
+                .subject("Thank you for subscribing — Sri Karthikeya Caterers")
+                .preheader("Welcome to our circle. Seasonal menus and festive specials, occasionally and never overwhelmingly.")
+                .isActive(true)
+                .content(Map.of(
+                        "html", BrandedEmailLayout.wrap(
+                                "Welcome to our circle. Seasonal menus and festive specials, occasionally and never overwhelmingly.",
+                                SUBSCRIBE_INNER_HTML),
+                        "text", BrandedEmailLayout.wrapText(SUBSCRIBE_INNER_TEXT),
+                        "variables", java.util.List.of(
+                                "clientName", "firstName", "email", "brand", "year"
+                        )
+                ))
+                .build();
+    }
+
     public static EmailTemplate quoteConfirmation() {
         return EmailTemplate.builder()
                 .name("__default_quote_confirmation__")
@@ -49,6 +78,57 @@ public final class DefaultTemplates {
     }
 
     /* ----------------------------- HTML / text content ----------------------------- */
+
+    private static final String SUBSCRIBE_INNER_HTML =
+            "<h1 style=\"font-family:Fraunces,Georgia,serif;color:#143a26;font-size:28px;"
+            +   "font-weight:400;line-height:1.25;margin:0 0 12px;letter-spacing:-0.01em;\">"
+            +   "Welcome, {{firstName}}."
+            + "</h1>"
+            + "<p style=\"color:#5b5b5b;font-size:14px;margin:0 0 28px;\">"
+            +   "You're now part of our circle."
+            + "</p>"
+            + "<p style=\"font-size:16px;line-height:1.7;margin:0 0 18px;\">"
+            +   "Thank you for subscribing to {{brand}}. We're delighted to keep you "
+            +   "in the loop with seasonal menus, festive specials, and the occasional "
+            +   "story from our kitchen — sent only when there is something genuinely "
+            +   "worth sharing."
+            + "</p>"
+            + "<p style=\"font-size:16px;line-height:1.7;margin:0 0 28px;\">"
+            +   "If you're planning an event soon, we would be honoured to be a part "
+            +   "of it. Reply to this email or reach us at any time — we read every "
+            +   "message ourselves."
+            + "</p>"
+
+            // Accent rule + CTA
+            + "<div style=\"width:48px;height:2px;background:#c9882f;margin:0 0 24px;\"></div>"
+            + "<p style=\"text-align:left;margin:0 0 28px;\">"
+            +   "<a href=\"https://srikarthikeyacaterers.com/#menus\" "
+            +     "style=\"display:inline-block;background:#c9882f;color:#ffffff;"
+            +     "text-decoration:none;padding:13px 26px;border-radius:8px;"
+            +     "font-weight:600;font-size:15px;letter-spacing:0.02em;\">"
+            +     "Explore our menus"
+            +   "</a>"
+            + "</p>"
+
+            + "<p style=\"color:#7a7a7a;font-size:13px;line-height:1.6;margin:0;\">"
+            +   "With warm regards,<br>"
+            +   "<span style=\"font-family:Fraunces,Georgia,serif;color:#143a26;font-size:15px;\">"
+            +     "The {{brand}} family"
+            +   "</span>"
+            + "</p>";
+
+    private static final String SUBSCRIBE_INNER_TEXT =
+            "Welcome, {{firstName}}.\n"
+            + "You're now part of our circle.\n\n"
+            + "Thank you for subscribing to {{brand}}. We'll keep you in the loop with\n"
+            + "seasonal menus, festive specials, and the occasional story from our\n"
+            + "kitchen — sent only when there is something worth sharing.\n\n"
+            + "If you're planning an event soon, we'd be honoured to be a part of it.\n"
+            + "Reply to this email or reach us anytime.\n\n"
+            + "Explore our menus: https://srikarthikeyacaterers.com/#menus\n\n"
+            + "With warm regards,\n"
+            + "The {{brand}} family";
+
 
     private static final String REVIEW_INVITATION_HTML =
             "<!doctype html>" +

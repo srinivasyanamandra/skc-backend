@@ -97,6 +97,7 @@ CREATE INDEX IF NOT EXISTS idx_subscribers_active ON subscribers(is_active) WHER
 CREATE TABLE IF NOT EXISTS email_templates (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name        VARCHAR(120) UNIQUE NOT NULL,
+    code        VARCHAR(60),
     type        VARCHAR(40)  NOT NULL,
     subject     VARCHAR(200) NOT NULL,
     preheader   VARCHAR(200),
@@ -106,7 +107,14 @@ CREATE TABLE IF NOT EXISTS email_templates (
     updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
+-- Idempotent column add for environments upgraded before code shipped.
+ALTER TABLE email_templates ADD COLUMN IF NOT EXISTS code VARCHAR(60);
+
 CREATE INDEX IF NOT EXISTS idx_templates_type ON email_templates(type) WHERE is_active = TRUE;
+-- Case-insensitive uniqueness on code (NULLs allowed for legacy rows).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_templates_code_lower
+    ON email_templates (LOWER(code))
+    WHERE code IS NOT NULL;
 
 -- Table 6: Email Campaigns
 CREATE TABLE IF NOT EXISTS email_campaigns (

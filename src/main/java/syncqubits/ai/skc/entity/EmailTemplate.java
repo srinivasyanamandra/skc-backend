@@ -13,7 +13,8 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "email_templates", indexes = {
-    @Index(name = "idx_templates_type", columnList = "type")
+    @Index(name = "idx_templates_type", columnList = "type"),
+    @Index(name = "idx_templates_code", columnList = "code", unique = true)
 })
 @Getter
 @Setter
@@ -28,6 +29,15 @@ public class EmailTemplate {
 
     @Column(unique = true, nullable = false, length = 120)
     private String name;
+
+    /**
+     * Stable, human-readable identifier for transactional template lookup
+     * (e.g. {@code SUBSCRIBE}, {@code QUOTE_CONFIRMATION}). Optional — when
+     * present it is the preferred resolution key over {@link #type} so
+     * admins can override copy without code changes.
+     */
+    @Column(length = 60, unique = true)
+    private String code;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 40)
@@ -56,6 +66,6 @@ public class EmailTemplate {
     private Instant updatedAt;
 
     public enum TemplateType {
-        REVIEW_INVITATION, CAMPAIGN, QUOTE_CONFIRMATION, CUSTOM
+        REVIEW_INVITATION, CAMPAIGN, QUOTE_CONFIRMATION, SUBSCRIBE_THANK_YOU, CUSTOM
     }
 }

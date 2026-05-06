@@ -16,6 +16,7 @@ import java.util.UUID;
 public class TemplateResponse {
     private UUID id;
     private String name;
+    private String code;
     private String type;
     private String subject;
     private String preheader;

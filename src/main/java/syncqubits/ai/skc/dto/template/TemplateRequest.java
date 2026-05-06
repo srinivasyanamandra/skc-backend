@@ -20,7 +20,14 @@ public class TemplateRequest {
     @Size(max = 120)
     private String name;
 
-    /** review_invitation | campaign | quote_confirmation | custom */
+    /**
+     * Optional stable identifier for transactional lookup (e.g. {@code SUBSCRIBE}).
+     * Case-insensitive uniqueness enforced server-side.
+     */
+    @Size(max = 60)
+    private String code;
+
+    /** review_invitation | campaign | quote_confirmation | subscribe_thank_you | custom */
     @NotBlank
     @Size(max = 40)
     private String type;

@@ -59,10 +59,15 @@ public class TemplateService {
         if (emailTemplateRepository.existsByName(req.getName())) {
             throw new ConflictException("Template with name '" + req.getName() + "' already exists.");
         }
+        String code = normaliseCode(req.getCode());
+        if (code != null && emailTemplateRepository.existsByCodeIgnoreCase(code)) {
+            throw new ConflictException("Template with code '" + code + "' already exists.");
+        }
         EmailTemplate.TemplateType type = parseType(req.getType(), true);
 
         EmailTemplate t = EmailTemplate.builder()
                 .name(req.getName().trim())
+                .code(code)
                 .type(type)
                 .subject(req.getSubject())
                 .preheader(req.getPreheader())
@@ -74,6 +79,7 @@ public class TemplateService {
         Map<String, Object> details = new HashMap<>();
         details.put("name", t.getName());
         details.put("type", t.getType().name().toLowerCase());
+        if (t.getCode() != null) details.put("code", t.getCode());
         systemLogService.logEmail("template_created", "success", t.getId(), "email_template", details);
         return toResponse(t);
     }
@@ -86,9 +92,14 @@ public class TemplateService {
                 && emailTemplateRepository.existsByName(req.getName())) {
             throw new ConflictException("Template with name '" + req.getName() + "' already exists.");
         }
+        String code = normaliseCode(req.getCode());
+        if (code != null && emailTemplateRepository.existsByCodeIgnoreCaseAndIdNot(code, id)) {
+            throw new ConflictException("Template with code '" + code + "' already exists.");
+        }
         EmailTemplate.TemplateType type = parseType(req.getType(), true);
 
         t.setName(req.getName().trim());
+        t.setCode(code);
         t.setType(type);
         t.setSubject(req.getSubject());
         t.setPreheader(req.getPreheader());
@@ -100,8 +111,16 @@ public class TemplateService {
         Map<String, Object> details = new HashMap<>();
         details.put("name", t.getName());
         details.put("type", t.getType().name().toLowerCase());
+        if (t.getCode() != null) details.put("code", t.getCode());
         systemLogService.logEmail("template_updated", "success", t.getId(), "email_template", details);
         return toResponse(t);
+    }
+
+    /** Trim + uppercase the optional code, or return null if blank. */
+    private static String normaliseCode(String raw) {
+        if (raw == null) return null;
+        String trimmed = raw.trim();
+        return trimmed.isEmpty() ? null : trimmed.toUpperCase();
     }
 
     @Transactional
@@ -170,6 +189,7 @@ public class TemplateService {
         return TemplateResponse.builder()
                 .id(t.getId())
                 .name(t.getName())
+                .code(t.getCode())
                 .type(t.getType().name().toLowerCase())
                 .subject(t.getSubject())
                 .preheader(t.getPreheader())
@@ -189,7 +209,7 @@ public class TemplateService {
             return EmailTemplate.TemplateType.valueOf(raw.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new BadRequestException("Invalid template type '" + raw +
-                    "'. Allowed: review_invitation, campaign, quote_confirmation, custom.");
+                    "'. Allowed: review_invitation, campaign, quote_confirmation, subscribe_thank_you, custom.");
         }
     }
 }
