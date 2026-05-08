@@ -371,10 +371,31 @@ public class CampaignService {
         }
 
         Instant scheduleAt = req == null ? null : req.getScheduleAt();
-        boolean immediate = scheduleAt == null || !scheduleAt.isAfter(Instant.now());
+        Instant now = Instant.now();
+
+        /* Validation: protect against client-side bugs sending nonsensical
+           timestamps (negative epoch, year 9999, etc). The previous version
+           silently accepted anything Jackson could parse, which let a single
+           bad request poison the scheduler queue with a row that would never
+           dispatch (or would dispatch instantly because the time was in the
+           past by years). */
+        if (scheduleAt != null) {
+            Instant maxFuture = now.plus(java.time.Duration.ofDays(365));
+            Instant minPast   = now.minus(java.time.Duration.ofMinutes(2));
+            if (scheduleAt.isAfter(maxFuture)) {
+                throw new BadRequestException(
+                    "scheduleAt is more than a year in the future — please pick an earlier time.");
+            }
+            if (scheduleAt.isBefore(minPast)) {
+                throw new BadRequestException(
+                    "scheduleAt is in the past. Set it to null to send now, or pick a future time.");
+            }
+        }
+
+        boolean immediate = scheduleAt == null || !scheduleAt.isAfter(now);
 
         c.setStatus(EmailCampaign.CampaignStatus.QUEUED);
-        c.setScheduledAt(immediate ? Instant.now() : scheduleAt);
+        c.setScheduledAt(immediate ? now : scheduleAt);
         c.setSentCount(0);
         c.setFailedCount(0);
 
@@ -389,6 +410,12 @@ public class CampaignService {
         details.put("totalRecipients", c.getTotalRecipients());
         details.put("scheduledAt", c.getScheduledAt().toString());
         details.put("immediate", immediate);
+        /* Audit-only: which timezone did the admin schedule from? Lets us
+           debug "scheduled for 6pm but fired at 11:30pm" by correlating the
+           UTC scheduleAt with the admin's intended local time. */
+        if (req != null && req.getTimezone() != null && !req.getTimezone().isBlank()) {
+            details.put("timezone", req.getTimezone());
+        }
         systemLogService.logCampaign("queued", "success", c.getId(), details);
 
         if (immediate) {

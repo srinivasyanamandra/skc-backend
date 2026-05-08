@@ -61,4 +61,11 @@ public interface ClientRepository extends JpaRepository<Client, UUID> {
 
     @Query("SELECT MAX(r.eventDate) FROM Review r WHERE r.client.id = :clientId")
     java.time.LocalDate latestReviewEventDate(@Param("clientId") UUID clientId);
+
+    /** Distinct tags currently in use across all clients. Native query
+     *  unnests the {@code tags TEXT[]} column; ordering is alphabetical. */
+    @Query(value = "SELECT DISTINCT t FROM clients c, unnest(c.tags) AS t " +
+                   "WHERE c.tags IS NOT NULL AND array_length(c.tags, 1) > 0 ORDER BY t",
+           nativeQuery = true)
+    java.util.List<String> distinctTags();
 }

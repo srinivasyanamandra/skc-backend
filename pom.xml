@@ -63,6 +63,16 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- Hibernate's JacksonJsonFormatMapper (used for jsonb columns) is
+		     compiled against Jackson 2; without this module, java.time.Instant
+		     fields inside JSONB document records fail to serialize. Spring
+		     Boot 4 ships Jackson 3 by default and doesn't pull this in
+		     transitively. JpaJsonConfig wires it onto Hibernate's mapper. -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.datatype</groupId>
+			<artifactId>jackson-datatype-jsr310</artifactId>
+		</dependency>
+
 		<!-- JWT -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>

@@ -3,9 +3,9 @@ spring:
     name: sri-karthikeya-caterers-backend
   
   datasource:
-    url: jdbc:postgresql://localhost:5432/sri_karthikeya_caterers
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    url: jdbc:postgresql://localhost:5432/skc
+    username: postgres
+    password: pankaj
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2

@@ -10,10 +10,18 @@ import org.springframework.web.bind.annotation.*;
 import syncqubits.ai.skc.dto.PageResponse;
 import syncqubits.ai.skc.dto.client.AdminClientDetail;
 import syncqubits.ai.skc.dto.client.AdminClientSummary;
+import syncqubits.ai.skc.dto.client.ClientAddressRequest;
+import syncqubits.ai.skc.dto.client.ClientAddressResponse;
+import syncqubits.ai.skc.dto.client.ClientCreateRequest;
+import syncqubits.ai.skc.dto.client.ClientNoteRequest;
+import syncqubits.ai.skc.dto.client.ClientNoteResponse;
 import syncqubits.ai.skc.dto.client.ClientUpdateRequest;
 import syncqubits.ai.skc.service.AdminClientService;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -43,9 +51,73 @@ public class AdminClientController {
         return ResponseEntity.ok(adminClientService.detail(id));
     }
 
+    @PostMapping
+    public ResponseEntity<AdminClientDetail> create(@Valid @RequestBody ClientCreateRequest body) {
+        return ResponseEntity.ok(adminClientService.create(body));
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<AdminClientDetail> update(@PathVariable UUID id,
                                                      @Valid @RequestBody ClientUpdateRequest body) {
         return ResponseEntity.ok(adminClientService.update(id, body));
+    }
+
+    /** Mark "we just spoke to this client" without changing anything else.
+     *  Drives the dashboard's "needs follow-up" list. */
+    @PostMapping("/{id}/touch")
+    public ResponseEntity<AdminClientDetail> touch(@PathVariable UUID id) {
+        return ResponseEntity.ok(adminClientService.touchLastContacted(id));
+    }
+
+    /* ─────────────────────────── notes (CRM timeline) ──────────────────────────── */
+
+    @PostMapping("/{id}/notes")
+    public ResponseEntity<ClientNoteResponse> addNote(@PathVariable UUID id,
+                                                      @Valid @RequestBody ClientNoteRequest body) {
+        return ResponseEntity.ok(adminClientService.addNote(id, body));
+    }
+
+    @PutMapping("/{id}/notes/{noteId}")
+    public ResponseEntity<ClientNoteResponse> updateNote(@PathVariable UUID id,
+                                                         @PathVariable UUID noteId,
+                                                         @Valid @RequestBody ClientNoteRequest body) {
+        return ResponseEntity.ok(adminClientService.updateNote(id, noteId, body));
+    }
+
+    @DeleteMapping("/{id}/notes/{noteId}")
+    public ResponseEntity<Void> deleteNote(@PathVariable UUID id, @PathVariable UUID noteId) {
+        adminClientService.deleteNote(id, noteId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /* ──────────────────────────────── addresses ────────────────────────────────── */
+
+    @PostMapping("/{id}/addresses")
+    public ResponseEntity<ClientAddressResponse> addAddress(@PathVariable UUID id,
+                                                            @Valid @RequestBody ClientAddressRequest body) {
+        return ResponseEntity.ok(adminClientService.addAddress(id, body));
+    }
+
+    @PutMapping("/{id}/addresses/{addressId}")
+    public ResponseEntity<ClientAddressResponse> updateAddress(@PathVariable UUID id,
+                                                               @PathVariable UUID addressId,
+                                                               @Valid @RequestBody ClientAddressRequest body) {
+        return ResponseEntity.ok(adminClientService.updateAddress(id, addressId, body));
+    }
+
+    @DeleteMapping("/{id}/addresses/{addressId}")
+    public ResponseEntity<Void> deleteAddress(@PathVariable UUID id, @PathVariable UUID addressId) {
+        adminClientService.deleteAddress(id, addressId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /* ──────────────────────────────── tags ─────────────────────────────────────── */
+
+    /** Set the entire tag set on a client (idempotent). Pass an empty list
+     *  to clear. Tags are normalized to lowercase server-side. */
+    @PutMapping("/{id}/tags")
+    public ResponseEntity<Set<String>> setTags(@PathVariable UUID id,
+                                               @RequestBody Map<String, List<String>> body) {
+        return ResponseEntity.ok(adminClientService.setClientTags(id, body.getOrDefault("tags", List.of())));
     }
 }
