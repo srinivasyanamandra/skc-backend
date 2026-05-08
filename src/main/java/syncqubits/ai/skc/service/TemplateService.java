@@ -18,6 +18,7 @@ import syncqubits.ai.skc.exception.BadRequestException;
 import syncqubits.ai.skc.exception.ConflictException;
 import syncqubits.ai.skc.exception.ResourceNotFoundException;
 import syncqubits.ai.skc.repository.EmailTemplateRepository;
+import syncqubits.ai.skc.service.email.TemplateVariables;
 import syncqubits.ai.skc.util.NameUtils;
 
 import java.util.HashMap;
@@ -142,20 +143,16 @@ public class TemplateService {
             throw new ConflictException("Template is inactive; activate before testing.");
         }
         
-        // Resolve clean display name for test recipient
+        // Resolve clean display name for test recipient.
         String displayName = NameUtils.resolveDisplayName(req.getName(), req.getTo());
-        String firstName = NameUtils.resolveFirstName(req.getName(), req.getTo());
-        
-        Map<String, Object> vars = new HashMap<>();
-        vars.put("clientName", displayName);
-        vars.put("name", displayName);
-        vars.put("firstName", firstName);
-        vars.put("email", req.getTo());
-        vars.put("month", java.time.LocalDate.now().toString());
-        vars.put("reviewLink", "https://example.invalid/test-link");
-        vars.put("eventType", "wedding");
-        vars.put("eventDate", java.time.LocalDate.now().plusDays(30).toString());
-        vars.put("guestCount", "100");
+        String firstName   = NameUtils.resolveFirstName(req.getName(), req.getTo());
+
+        // Populate the FULL canonical placeholder set so any template the
+        // user might send a test for renders cleanly — clientName,
+        // firstName, eventType, eventDate, guests, reviewLink, quoteLink,
+        // brand, year, plus the legacy `name` and `email` aliases. Caller
+        // overrides via req.getVariables() take precedence.
+        Map<String, Object> vars = TemplateVariables.sampleSet(displayName, firstName, req.getTo());
         if (req.getVariables() != null) vars.putAll(req.getVariables());
 
         EmailSendResult result = emailService.sendNow(

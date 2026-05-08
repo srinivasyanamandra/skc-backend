@@ -12,6 +12,7 @@ import syncqubits.ai.skc.entity.QuoteRequest;
 import syncqubits.ai.skc.repository.ClientRepository;
 import syncqubits.ai.skc.repository.EmailTemplateRepository;
 import syncqubits.ai.skc.repository.QuoteRequestRepository;
+import syncqubits.ai.skc.service.email.TemplateVariables;
 import syncqubits.ai.skc.util.NameUtils;
 
 import java.util.HashMap;
@@ -82,16 +83,22 @@ public class QuoteService {
             
             // Derive clean display name and first name for personalization
             String displayName = NameUtils.resolveDisplayName(client.getName(), client.getEmail());
-            String firstName = NameUtils.resolveFirstName(client.getName(), client.getEmail());
-            
-            Map<String, Object> vars = new HashMap<>();
+            String firstName   = NameUtils.resolveFirstName(client.getName(), client.getEmail());
+
+            // Canonical placeholder set + quote-specific overrides — keeps
+            // every {{firstName}} / {{guests}} / {{brand}} in a template
+            // resolvable, even when the quote form didn't capture every
+            // detail.
+            Map<String, Object> vars = TemplateVariables.liveSet();
             vars.put("clientName", displayName);
-            vars.put("name", displayName);
-            vars.put("firstName", firstName);
-            vars.put("eventType", quoteRequest.getEventType());
-            vars.put("eventDate", quoteRequest.getEventDate().toString());
-            vars.put("guests", quoteRequest.getGuests());
-            
+            vars.put("name",       displayName);
+            vars.put("firstName",  firstName);
+            vars.put("email",      client.getEmail());
+            vars.put("eventType",  quoteRequest.getEventType());
+            vars.put("eventDate",  quoteRequest.getEventDate().toString());
+            vars.put("guests",     quoteRequest.getGuests());
+            vars.put("guestCount", quoteRequest.getGuests());
+
             emailService.sendAsync(template, client.getEmail(), displayName,
                     vars, "quote_request", quoteRequest.getId());
         } catch (Exception e) {

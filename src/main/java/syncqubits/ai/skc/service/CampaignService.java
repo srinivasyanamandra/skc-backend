@@ -27,6 +27,7 @@ import syncqubits.ai.skc.repository.ClientRepository;
 import syncqubits.ai.skc.repository.EmailCampaignRepository;
 import syncqubits.ai.skc.repository.EmailTemplateRepository;
 import syncqubits.ai.skc.repository.SubscriberRepository;
+import syncqubits.ai.skc.service.email.TemplateVariables;
 
 import syncqubits.ai.skc.util.NameUtils;
 
@@ -702,14 +703,14 @@ public class CampaignService {
             throw new BadRequestException("to.kind must be 'client' or 'subscriber'");
         }
 
-        Map<String, Object> vars = new HashMap<>();
+        // Canonical placeholder set first; recipient-specific overrides on top.
         String displayName = NameUtils.resolveDisplayName(name, email);
         String firstName   = NameUtils.resolveFirstName(name, email);
+        Map<String, Object> vars = TemplateVariables.liveSet();
         vars.put("clientName", displayName);
         vars.put("name",       displayName);
         vars.put("firstName",  firstName);
         vars.put("email",      email);
-        vars.put("month", java.time.LocalDate.now().toString());
         if (req.getVariables() != null) vars.putAll(req.getVariables());
 
         EmailSendResult result = emailService.sendNow(template, email, displayName, vars, entityType, entityId);
@@ -766,7 +767,14 @@ public class CampaignService {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> mergeVariables(EmailCampaign c, Map<String, Object> entry) {
-        Map<String, Object> vars = new LinkedHashMap<>();
+        // Layer order (last write wins):
+        //   1. canonical placeholder set (every key non-null)
+        //   2. campaign-level globals
+        //   3. recipient-level overrides
+        //   4. recipient-derived values (name, email, links) — must win
+        //      so per-recipient personalization can't be clobbered by a
+        //      stale global with the same key.
+        Map<String, Object> vars = TemplateVariables.liveSet();
         if (c.getGlobalVariables() != null) vars.putAll(c.getGlobalVariables());
 
         Object overrides = entry.get("variables");
@@ -774,7 +782,6 @@ public class CampaignService {
             ov.forEach((k, v) -> vars.put(String.valueOf(k), v));
         }
 
-        // Resolve a clean display name — prefer stored name, derive from email if absent
         String rawName  = entry.get("name")  == null ? null : entry.get("name").toString();
         String rawEmail = entry.get("email") == null ? null : entry.get("email").toString();
         String displayName = NameUtils.resolveDisplayName(rawName, rawEmail);

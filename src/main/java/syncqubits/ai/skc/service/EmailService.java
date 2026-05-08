@@ -13,10 +13,12 @@ import org.springframework.stereotype.Service;
 import syncqubits.ai.skc.dto.email.EmailSendResult;
 import syncqubits.ai.skc.dto.email.RenderedEmail;
 import syncqubits.ai.skc.entity.EmailTemplate;
+import syncqubits.ai.skc.service.email.BlockHtmlRenderer;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -36,6 +38,7 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
     private final SystemLogService systemLogService;
+    private final BlockHtmlRenderer blockHtmlRenderer;
 
     @Value("${mail.from}")
     private String fromAddress;
@@ -58,10 +61,34 @@ public class EmailService {
         Map<String, Object> resolved = variables == null ? Map.of() : variables;
         Map<String, Object> content = template.getContent() == null ? Map.of() : template.getContent();
 
-        String html = substitute(asString(content.get("html")), resolved);
-        String text = substitute(asString(content.get("text")), resolved);
-        String subject = substitute(template.getSubject(), resolved);
+        String subject   = substitute(template.getSubject(),   resolved);
         String preheader = substitute(template.getPreheader(), resolved);
+
+        // Prefer rendering from `content.blocks` when available — it's the
+        // editor's source of truth and is guaranteed to carry raw `{{var}}`
+        // placeholders. The persisted `content.html` may have been baked
+        // by an earlier version of the EmailBuilder that pre-resolved
+        // placeholders before saving (the "[First Name]" bug); regenerating
+        // server-side from blocks side-steps that bug entirely. Falls back
+        // to `content.html` only when blocks are missing (e.g. legacy
+        // templates that were always raw HTML).
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> blocks = (content.get("blocks") instanceof List)
+                ? (List<Map<String, Object>>) content.get("blocks")
+                : null;
+
+        String html;
+        String text;
+        if (blocks != null && !blocks.isEmpty()) {
+            String body = blockHtmlRenderer.renderBody(blocks);
+            html = blockHtmlRenderer.wrapBranded(body, subject, preheader);
+            text = blockHtmlRenderer.renderText(blocks);
+            html = substitute(html, resolved);
+            text = substitute(text, resolved);
+        } else {
+            html = substitute(asString(content.get("html")), resolved);
+            text = substitute(asString(content.get("text")), resolved);
+        }
 
         // If no html given but text provided, wrap text into a minimal html body
         if (isBlank(html) && !isBlank(text)) {

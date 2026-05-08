@@ -12,6 +12,7 @@ import syncqubits.ai.skc.exception.ConflictException;
 import syncqubits.ai.skc.repository.EmailTemplateRepository;
 import syncqubits.ai.skc.repository.SubscriberRepository;
 import syncqubits.ai.skc.service.email.BrandedEmailLayout;
+import syncqubits.ai.skc.service.email.TemplateVariables;
 import syncqubits.ai.skc.util.NameUtils;
 
 import java.time.Year;
@@ -143,13 +144,12 @@ public class SubscriberService {
         String displayName = NameUtils.resolveDisplayName(s.getName(), s.getEmail());
         String firstName   = NameUtils.resolveFirstName(s.getName(), s.getEmail());
 
-        Map<String, Object> vars = new HashMap<>();
+        // Canonical placeholder set + subscriber-specific overrides.
+        Map<String, Object> vars = TemplateVariables.liveSet();
         vars.put("clientName", displayName);
         vars.put("name",       displayName);
         vars.put("firstName",  firstName);
         vars.put("email",      s.getEmail());
-        vars.put("brand",      BrandedEmailLayout.BRAND_NAME);
-        vars.put("year",       String.valueOf(Year.now().getValue()));
         return vars;
     }
 

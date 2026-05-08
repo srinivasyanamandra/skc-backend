@@ -23,6 +23,7 @@ import syncqubits.ai.skc.repository.ClientRepository;
 import syncqubits.ai.skc.repository.EmailTemplateRepository;
 import syncqubits.ai.skc.repository.ReviewRepository;
 import syncqubits.ai.skc.service.email.BrandedEmailLayout;
+import syncqubits.ai.skc.service.email.TemplateVariables;
 import syncqubits.ai.skc.util.NameUtils;
 import syncqubits.ai.skc.util.TokenGenerator;
 
@@ -101,20 +102,20 @@ public class AdminReviewService {
                 : invitation.getEventDate()
                     .format(DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ENGLISH));
 
-        Map<String, Object> vars = new HashMap<>();
+        // Start from the canonical placeholder set so any template — even
+        // one that references {{guests}} or {{quoteLink}} — substitutes
+        // cleanly. Then layer the review-specific values on top.
+        Map<String, Object> vars = TemplateVariables.liveSet();
         vars.put("clientName",  displayName);
         vars.put("name",        displayName);
         vars.put("firstName",   firstName);
+        vars.put("email",       client.getEmail());
         vars.put("clientEmail", client.getEmail());
         vars.put("eventType",   invitation.getEventType());
         vars.put("eventDate",   prettyEventDate);
         vars.put("reviewLink",  reviewLink);
         vars.put("token",       token);
         vars.put("expiresAt",   prettyExpiry);
-        // Brand-level placeholders consumed by BrandedEmailLayout's footer
-        // ("© {{year}} {{brand}}…") and the body's signature line.
-        vars.put("brand",       BrandedEmailLayout.BRAND_NAME);
-        vars.put("year",        String.valueOf(Year.now().getValue()));
 
         Map<String, Object> details = new HashMap<>();
         details.put("clientId", client.getId().toString());
