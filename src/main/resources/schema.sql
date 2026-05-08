@@ -48,25 +48,25 @@ CREATE TABLE IF NOT EXISTS clients (
 
     created_at             TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at             TIMESTAMPTZ  NOT NULL DEFAULT now()
-);
+)--;;
 
 -- Idempotent column adds for existing dev DBs that started before this
 -- consolidation. Safe no-op when the column already exists.
-ALTER TABLE clients ADD COLUMN IF NOT EXISTS company_name           VARCHAR(160);
-ALTER TABLE clients ADD COLUMN IF NOT EXISTS lifecycle_stage        VARCHAR(40)  NOT NULL DEFAULT 'PROSPECT';
-ALTER TABLE clients ADD COLUMN IF NOT EXISTS referral_source        VARCHAR(80);
-ALTER TABLE clients ADD COLUMN IF NOT EXISTS lifetime_value_cents   BIGINT       NOT NULL DEFAULT 0;
-ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_contacted_at      TIMESTAMPTZ;
-ALTER TABLE clients ADD COLUMN IF NOT EXISTS preferred_contact      VARCHAR(20);
-ALTER TABLE clients ADD COLUMN IF NOT EXISTS dietary_notes          TEXT;
-ALTER TABLE clients ADD COLUMN IF NOT EXISTS tags                   TEXT[]       NOT NULL DEFAULT '{}';
-ALTER TABLE clients ADD COLUMN IF NOT EXISTS addresses              JSONB        NOT NULL DEFAULT '[]'::jsonb;
-ALTER TABLE clients ADD COLUMN IF NOT EXISTS notes_log              JSONB        NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS company_name           VARCHAR(160)--;;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS lifecycle_stage        VARCHAR(40)  NOT NULL DEFAULT 'PROSPECT'--;;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS referral_source        VARCHAR(80)--;;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS lifetime_value_cents   BIGINT       NOT NULL DEFAULT 0--;;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_contacted_at      TIMESTAMPTZ--;;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS preferred_contact      VARCHAR(20)--;;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS dietary_notes          TEXT--;;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS tags                   TEXT[]       NOT NULL DEFAULT '{}'--;;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS addresses              JSONB        NOT NULL DEFAULT '[]'::jsonb--;;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS notes_log              JSONB        NOT NULL DEFAULT '[]'::jsonb--;;
 
-CREATE INDEX IF NOT EXISTS idx_clients_email      ON clients(email);
-CREATE INDEX IF NOT EXISTS idx_clients_status     ON clients(status);
-CREATE INDEX IF NOT EXISTS idx_clients_lifecycle  ON clients(lifecycle_stage);
-CREATE INDEX IF NOT EXISTS idx_clients_tags_gin   ON clients USING GIN (tags);
+CREATE INDEX IF NOT EXISTS idx_clients_email      ON clients(email)--;;
+CREATE INDEX IF NOT EXISTS idx_clients_status     ON clients(status)--;;
+CREATE INDEX IF NOT EXISTS idx_clients_lifecycle  ON clients(lifecycle_stage)--;;
+CREATE INDEX IF NOT EXISTS idx_clients_tags_gin   ON clients USING GIN (tags)--;;
 
 -- ============================================================================
 -- Core: Quote Requests
@@ -85,11 +85,11 @@ CREATE TABLE IF NOT EXISTS quote_requests (
     responded_at TIMESTAMPTZ,
     created_at   TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at   TIMESTAMPTZ  NOT NULL DEFAULT now()
-);
+)--;;
 
-CREATE INDEX IF NOT EXISTS idx_quotes_client  ON quote_requests(client_id);
-CREATE INDEX IF NOT EXISTS idx_quotes_status  ON quote_requests(status);
-CREATE INDEX IF NOT EXISTS idx_quotes_date    ON quote_requests(event_date);
+CREATE INDEX IF NOT EXISTS idx_quotes_client  ON quote_requests(client_id)--;;
+CREATE INDEX IF NOT EXISTS idx_quotes_status  ON quote_requests(status)--;;
+CREATE INDEX IF NOT EXISTS idx_quotes_date    ON quote_requests(event_date)--;;
 
 -- ============================================================================
 -- Core: Reviews (unified invitation + submitted review)
@@ -124,13 +124,13 @@ CREATE TABLE IF NOT EXISTS reviews (
     submitted_at            TIMESTAMPTZ,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+)--;;
 
-CREATE INDEX IF NOT EXISTS idx_reviews_token    ON reviews(token)      WHERE type = 'INVITATION';
-CREATE INDEX IF NOT EXISTS idx_reviews_expires  ON reviews(expires_at) WHERE type = 'INVITATION' AND used_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_reviews_public   ON reviews(is_public, created_at DESC) WHERE type = 'REVIEW' AND is_public = TRUE;
-CREATE INDEX IF NOT EXISTS idx_reviews_featured ON reviews(is_featured) WHERE type = 'REVIEW' AND is_featured = TRUE;
-CREATE INDEX IF NOT EXISTS idx_reviews_status   ON reviews(status)      WHERE type = 'REVIEW';
+CREATE INDEX IF NOT EXISTS idx_reviews_token    ON reviews(token)      WHERE type = 'INVITATION'--;;
+CREATE INDEX IF NOT EXISTS idx_reviews_expires  ON reviews(expires_at) WHERE type = 'INVITATION' AND used_at IS NULL--;;
+CREATE INDEX IF NOT EXISTS idx_reviews_public   ON reviews(is_public, created_at DESC) WHERE type = 'REVIEW' AND is_public = TRUE--;;
+CREATE INDEX IF NOT EXISTS idx_reviews_featured ON reviews(is_featured) WHERE type = 'REVIEW' AND is_featured = TRUE--;;
+CREATE INDEX IF NOT EXISTS idx_reviews_status   ON reviews(status)      WHERE type = 'REVIEW'--;;
 
 -- ============================================================================
 -- Core: Subscribers
@@ -144,9 +144,9 @@ CREATE TABLE IF NOT EXISTS subscribers (
     is_active       BOOLEAN     NOT NULL DEFAULT TRUE,
     unsubscribed_at TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+)--;;
 
-CREATE INDEX IF NOT EXISTS idx_subscribers_active ON subscribers(is_active) WHERE is_active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_subscribers_active ON subscribers(is_active) WHERE is_active = TRUE--;;
 
 -- ============================================================================
 -- Email: Templates + Campaigns
@@ -163,14 +163,14 @@ CREATE TABLE IF NOT EXISTS email_templates (
     is_active   BOOLEAN      NOT NULL DEFAULT TRUE,
     created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
-);
+)--;;
 
-ALTER TABLE email_templates ADD COLUMN IF NOT EXISTS code VARCHAR(60);
+ALTER TABLE email_templates ADD COLUMN IF NOT EXISTS code VARCHAR(60)--;;
 
-CREATE INDEX IF NOT EXISTS idx_templates_type ON email_templates(type) WHERE is_active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_templates_type ON email_templates(type) WHERE is_active = TRUE--;;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_templates_code_lower
     ON email_templates (LOWER(code))
-    WHERE code IS NOT NULL;
+    WHERE code IS NOT NULL--;;
 
 CREATE TABLE IF NOT EXISTS email_campaigns (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -190,15 +190,15 @@ CREATE TABLE IF NOT EXISTS email_campaigns (
     locked_by           VARCHAR(64),
     created_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at          TIMESTAMPTZ  NOT NULL DEFAULT now()
-);
+)--;;
 
-ALTER TABLE email_campaigns ADD COLUMN IF NOT EXISTS locked_at TIMESTAMPTZ;
-ALTER TABLE email_campaigns ADD COLUMN IF NOT EXISTS locked_by VARCHAR(64);
+ALTER TABLE email_campaigns ADD COLUMN IF NOT EXISTS locked_at TIMESTAMPTZ--;;
+ALTER TABLE email_campaigns ADD COLUMN IF NOT EXISTS locked_by VARCHAR(64)--;;
 
-CREATE INDEX IF NOT EXISTS idx_campaigns_status   ON email_campaigns(status);
-CREATE INDEX IF NOT EXISTS idx_campaigns_schedule ON email_campaigns(scheduled_at) WHERE status = 'QUEUED';
-CREATE INDEX IF NOT EXISTS idx_campaigns_created  ON email_campaigns(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_campaigns_lock     ON email_campaigns(status, locked_at, scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_campaigns_status   ON email_campaigns(status)--;;
+CREATE INDEX IF NOT EXISTS idx_campaigns_schedule ON email_campaigns(scheduled_at) WHERE status = 'QUEUED'--;;
+CREATE INDEX IF NOT EXISTS idx_campaigns_created  ON email_campaigns(created_at DESC)--;;
+CREATE INDEX IF NOT EXISTS idx_campaigns_lock     ON email_campaigns(status, locked_at, scheduled_at)--;;
 
 -- ============================================================================
 -- System logs
@@ -215,11 +215,11 @@ CREATE TABLE IF NOT EXISTS system_logs (
     ip_address   INET,
     user_agent   TEXT,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+)--;;
 
-CREATE INDEX IF NOT EXISTS idx_logs_type    ON system_logs(type);
-CREATE INDEX IF NOT EXISTS idx_logs_entity  ON system_logs(entity_type, entity_id);
-CREATE INDEX IF NOT EXISTS idx_logs_created ON system_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_logs_type    ON system_logs(type)--;;
+CREATE INDEX IF NOT EXISTS idx_logs_entity  ON system_logs(entity_type, entity_id)--;;
+CREATE INDEX IF NOT EXISTS idx_logs_created ON system_logs(created_at DESC)--;;
 
 -- ============================================================================
 -- Bookings
@@ -227,7 +227,7 @@ CREATE INDEX IF NOT EXISTS idx_logs_created ON system_logs(created_at DESC);
 --   tasks  JSONB array  [{id,title,description,due_at,assignee,status,position,completed_at,created_at}]
 -- ============================================================================
 
-CREATE SEQUENCE IF NOT EXISTS booking_reference_seq START 1;
+CREATE SEQUENCE IF NOT EXISTS booking_reference_seq START 1--;;
 
 CREATE TABLE IF NOT EXISTS bookings (
     id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -265,17 +265,17 @@ CREATE TABLE IF NOT EXISTS bookings (
 
     created_at            TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at            TIMESTAMPTZ  NOT NULL DEFAULT now()
-);
+)--;;
 
-ALTER TABLE bookings ADD COLUMN IF NOT EXISTS invoiced_amount_cents BIGINT NOT NULL DEFAULT 0;
-ALTER TABLE bookings ADD COLUMN IF NOT EXISTS direct_expense_cents  BIGINT NOT NULL DEFAULT 0;
-ALTER TABLE bookings ADD COLUMN IF NOT EXISTS tasks                 JSONB  NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS invoiced_amount_cents BIGINT NOT NULL DEFAULT 0--;;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS direct_expense_cents  BIGINT NOT NULL DEFAULT 0--;;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS tasks                 JSONB  NOT NULL DEFAULT '[]'::jsonb--;;
 
-CREATE INDEX IF NOT EXISTS idx_bookings_client      ON bookings(client_id);
-CREATE INDEX IF NOT EXISTS idx_bookings_quote       ON bookings(quote_request_id);
-CREATE INDEX IF NOT EXISTS idx_bookings_status      ON bookings(status);
-CREATE INDEX IF NOT EXISTS idx_bookings_event_date  ON bookings(event_date);
-CREATE INDEX IF NOT EXISTS idx_bookings_created     ON bookings(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_bookings_client      ON bookings(client_id)--;;
+CREATE INDEX IF NOT EXISTS idx_bookings_quote       ON bookings(quote_request_id)--;;
+CREATE INDEX IF NOT EXISTS idx_bookings_status      ON bookings(status)--;;
+CREATE INDEX IF NOT EXISTS idx_bookings_event_date  ON bookings(event_date)--;;
+CREATE INDEX IF NOT EXISTS idx_bookings_created     ON bookings(created_at DESC)--;;
 
 -- ============================================================================
 -- Vendors
@@ -322,18 +322,18 @@ CREATE TABLE IF NOT EXISTS vendors (
 
     created_at             TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at             TIMESTAMPTZ  NOT NULL DEFAULT now()
-);
+)--;;
 
-ALTER TABLE vendors ADD COLUMN IF NOT EXISTS tags        TEXT[] NOT NULL DEFAULT '{}';
-ALTER TABLE vendors ADD COLUMN IF NOT EXISTS contacts    JSONB  NOT NULL DEFAULT '[]'::jsonb;
-ALTER TABLE vendors ADD COLUMN IF NOT EXISTS rate_cards  JSONB  NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS tags        TEXT[] NOT NULL DEFAULT '{}'--;;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS contacts    JSONB  NOT NULL DEFAULT '[]'::jsonb--;;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS rate_cards  JSONB  NOT NULL DEFAULT '[]'::jsonb--;;
 
-CREATE INDEX IF NOT EXISTS idx_vendors_category   ON vendors(category);
-CREATE INDEX IF NOT EXISTS idx_vendors_status     ON vendors(status);
-CREATE INDEX IF NOT EXISTS idx_vendors_name_lower ON vendors(LOWER(name));
-CREATE INDEX IF NOT EXISTS idx_vendors_tags_gin   ON vendors USING GIN (tags);
+CREATE INDEX IF NOT EXISTS idx_vendors_category   ON vendors(category)--;;
+CREATE INDEX IF NOT EXISTS idx_vendors_status     ON vendors(status)--;;
+CREATE INDEX IF NOT EXISTS idx_vendors_name_lower ON vendors(LOWER(name))--;;
+CREATE INDEX IF NOT EXISTS idx_vendors_tags_gin   ON vendors USING GIN (tags)--;;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_vendors_unique_name_per_category
-    ON vendors(category, LOWER(name));
+    ON vendors(category, LOWER(name))--;;
 
 -- ============================================================================
 -- Purchase Orders
@@ -341,7 +341,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_vendors_unique_name_per_category
 --   items  JSONB array  [{id,description,quantity,unit,unit_price_cents,line_total_cents,position,rate_card_id,notes}]
 -- ============================================================================
 
-CREATE SEQUENCE IF NOT EXISTS po_reference_seq START 1;
+CREATE SEQUENCE IF NOT EXISTS po_reference_seq START 1--;;
 
 CREATE TABLE IF NOT EXISTS purchase_orders (
     id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -369,14 +369,14 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
 
     created_at            TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at            TIMESTAMPTZ  NOT NULL DEFAULT now()
-);
+)--;;
 
-ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS items JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS items JSONB NOT NULL DEFAULT '[]'::jsonb--;;
 
-CREATE INDEX IF NOT EXISTS idx_pos_vendor    ON purchase_orders(vendor_id);
-CREATE INDEX IF NOT EXISTS idx_pos_booking   ON purchase_orders(booking_id);
-CREATE INDEX IF NOT EXISTS idx_pos_status    ON purchase_orders(status);
-CREATE INDEX IF NOT EXISTS idx_pos_issue     ON purchase_orders(issue_date DESC NULLS LAST);
+CREATE INDEX IF NOT EXISTS idx_pos_vendor    ON purchase_orders(vendor_id)--;;
+CREATE INDEX IF NOT EXISTS idx_pos_booking   ON purchase_orders(booking_id)--;;
+CREATE INDEX IF NOT EXISTS idx_pos_status    ON purchase_orders(status)--;;
+CREATE INDEX IF NOT EXISTS idx_pos_issue     ON purchase_orders(issue_date DESC NULLS LAST)--;;
 
 -- ============================================================================
 -- Invoices (Phase 3)
@@ -384,7 +384,7 @@ CREATE INDEX IF NOT EXISTS idx_pos_issue     ON purchase_orders(issue_date DESC 
 --   items  JSONB array  [{id,description,quantity,unit,unit_price_cents,line_total_cents,position,notes}]
 -- ============================================================================
 
-CREATE SEQUENCE IF NOT EXISTS invoice_reference_seq START 1;
+CREATE SEQUENCE IF NOT EXISTS invoice_reference_seq START 1--;;
 
 CREATE TABLE IF NOT EXISTS invoices (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -415,14 +415,14 @@ CREATE TABLE IF NOT EXISTS invoices (
 
     created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ  NOT NULL DEFAULT now()
-);
+)--;;
 
-CREATE INDEX IF NOT EXISTS idx_invoices_booking  ON invoices(booking_id);
-CREATE INDEX IF NOT EXISTS idx_invoices_client   ON invoices(client_id);
-CREATE INDEX IF NOT EXISTS idx_invoices_status   ON invoices(status);
-CREATE INDEX IF NOT EXISTS idx_invoices_due_date ON invoices(due_date);
+CREATE INDEX IF NOT EXISTS idx_invoices_booking  ON invoices(booking_id)--;;
+CREATE INDEX IF NOT EXISTS idx_invoices_client   ON invoices(client_id)--;;
+CREATE INDEX IF NOT EXISTS idx_invoices_status   ON invoices(status)--;;
+CREATE INDEX IF NOT EXISTS idx_invoices_due_date ON invoices(due_date)--;;
 CREATE INDEX IF NOT EXISTS idx_invoices_unpaid
-    ON invoices(status) WHERE status IN ('ISSUED', 'PARTIALLY_PAID', 'OVERDUE');
+    ON invoices(status) WHERE status IN ('ISSUED', 'PARTIALLY_PAID', 'OVERDUE')--;;
 
 -- ============================================================================
 -- Transactions (Phase 3, unified payments + expenses)
@@ -441,7 +441,7 @@ CREATE INDEX IF NOT EXISTS idx_invoices_unpaid
 -- SUM(amount_cents)` instead of UNIONing two ledgers.
 -- ============================================================================
 
-CREATE SEQUENCE IF NOT EXISTS transaction_reference_seq START 1;
+CREATE SEQUENCE IF NOT EXISTS transaction_reference_seq START 1--;;
 
 CREATE TABLE IF NOT EXISTS transactions (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -458,10 +458,10 @@ CREATE TABLE IF NOT EXISTS transactions (
 
     status              VARCHAR(20)  NOT NULL DEFAULT 'RECORDED',
 
-    -- Required for OUTGOING; null for INCOMING.
+    -- Required for OUTGOING--;; null for INCOMING.
     category            VARCHAR(40),
 
-    -- Attribution (subset applies to each direction; see comments above).
+    -- Attribution (subset applies to each direction--;; see comments above).
     client_id           UUID         REFERENCES clients(id)         ON DELETE SET NULL,
     invoice_id          UUID         REFERENCES invoices(id)        ON DELETE SET NULL,
     vendor_id           UUID         REFERENCES vendors(id)         ON DELETE SET NULL,
@@ -478,35 +478,35 @@ CREATE TABLE IF NOT EXISTS transactions (
 
     created_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at          TIMESTAMPTZ  NOT NULL DEFAULT now()
-);
+)--;;
 
-CREATE INDEX IF NOT EXISTS idx_tx_direction   ON transactions(direction);
-CREATE INDEX IF NOT EXISTS idx_tx_paid_at     ON transactions(paid_at DESC);
-CREATE INDEX IF NOT EXISTS idx_tx_booking     ON transactions(booking_id);
-CREATE INDEX IF NOT EXISTS idx_tx_invoice     ON transactions(invoice_id);
-CREATE INDEX IF NOT EXISTS idx_tx_vendor      ON transactions(vendor_id);
-CREATE INDEX IF NOT EXISTS idx_tx_po          ON transactions(purchase_order_id);
-CREATE INDEX IF NOT EXISTS idx_tx_client      ON transactions(client_id);
-CREATE INDEX IF NOT EXISTS idx_tx_category    ON transactions(category)  WHERE direction = 'OUTGOING';
+CREATE INDEX IF NOT EXISTS idx_tx_direction   ON transactions(direction)--;;
+CREATE INDEX IF NOT EXISTS idx_tx_paid_at     ON transactions(paid_at DESC)--;;
+CREATE INDEX IF NOT EXISTS idx_tx_booking     ON transactions(booking_id)--;;
+CREATE INDEX IF NOT EXISTS idx_tx_invoice     ON transactions(invoice_id)--;;
+CREATE INDEX IF NOT EXISTS idx_tx_vendor      ON transactions(vendor_id)--;;
+CREATE INDEX IF NOT EXISTS idx_tx_po          ON transactions(purchase_order_id)--;;
+CREATE INDEX IF NOT EXISTS idx_tx_client      ON transactions(client_id)--;;
+CREATE INDEX IF NOT EXISTS idx_tx_category    ON transactions(category)  WHERE direction = 'OUTGOING'--;;
 CREATE INDEX IF NOT EXISTS idx_tx_active
-    ON transactions(direction, paid_at DESC) WHERE status <> 'REFUNDED';
+    ON transactions(direction, paid_at DESC) WHERE status <> 'REFUNDED'--;;
 
 -- ============================================================================
 -- Comments
 -- ============================================================================
 
-COMMENT ON TABLE clients          IS 'Customers; embeds tags TEXT[], addresses JSONB, notes_log JSONB';
-COMMENT ON TABLE quote_requests   IS 'Quote requests submitted by clients';
-COMMENT ON TABLE bookings         IS 'Confirmed events; embeds tasks JSONB';
-COMMENT ON TABLE vendors          IS 'Suppliers; embeds tags TEXT[], contacts JSONB, rate_cards JSONB';
-COMMENT ON TABLE purchase_orders  IS 'Orders to vendors, optionally tagged to a booking; embeds items JSONB';
-COMMENT ON TABLE invoices         IS 'Formal billing artefacts per booking; embeds items JSONB';
-COMMENT ON TABLE transactions     IS 'Unified cash-flow ledger (incoming = payments, outgoing = expenses)';
-COMMENT ON TABLE reviews          IS 'Review invitations and submitted reviews (unified)';
-COMMENT ON TABLE subscribers      IS 'Newsletter subscribers';
-COMMENT ON TABLE email_templates  IS 'Email templates with JSON content';
-COMMENT ON TABLE email_campaigns  IS 'Email campaign tracking and history';
-COMMENT ON TABLE system_logs      IS 'Audit logs for all system actions';
+COMMENT ON TABLE clients          IS 'Customers--;; embeds tags TEXT[], addresses JSONB, notes_log JSONB'--;;
+COMMENT ON TABLE quote_requests   IS 'Quote requests submitted by clients'--;;
+COMMENT ON TABLE bookings         IS 'Confirmed events--;; embeds tasks JSONB'--;;
+COMMENT ON TABLE vendors          IS 'Suppliers--;; embeds tags TEXT[], contacts JSONB, rate_cards JSONB'--;;
+COMMENT ON TABLE purchase_orders  IS 'Orders to vendors, optionally tagged to a booking--;; embeds items JSONB'--;;
+COMMENT ON TABLE invoices         IS 'Formal billing artefacts per booking--;; embeds items JSONB'--;;
+COMMENT ON TABLE transactions     IS 'Unified cash-flow ledger (incoming = payments, outgoing = expenses)'--;;
+COMMENT ON TABLE reviews          IS 'Review invitations and submitted reviews (unified)'--;;
+COMMENT ON TABLE subscribers      IS 'Newsletter subscribers'--;;
+COMMENT ON TABLE email_templates  IS 'Email templates with JSON content'--;;
+COMMENT ON TABLE email_campaigns  IS 'Email campaign tracking and history'--;;
+COMMENT ON TABLE system_logs      IS 'Audit logs for all system actions'--;;
 
 -- ============================================================================
 -- One-shot consolidation: copy data from legacy child tables into JSONB
@@ -681,7 +681,7 @@ BEGIN
     DROP TABLE IF EXISTS client_notes         CASCADE;
     DROP TABLE IF EXISTS client_addresses     CASCADE;
     DROP TABLE IF EXISTS tags                 CASCADE;
-END$$;
+END$$--;;
 
 -- ============================================================================
 -- Backfill + harden collection columns
@@ -693,29 +693,29 @@ END$$;
 -- columns to NOT NULL with a sensible default. Idempotent and cheap.
 -- ============================================================================
 
-UPDATE clients          SET tags       = '{}'           WHERE tags       IS NULL;
-UPDATE clients          SET addresses  = '[]'::jsonb    WHERE addresses  IS NULL;
-UPDATE clients          SET notes_log  = '[]'::jsonb    WHERE notes_log  IS NULL;
-ALTER TABLE clients     ALTER COLUMN tags      SET DEFAULT '{}',          ALTER COLUMN tags      SET NOT NULL;
-ALTER TABLE clients     ALTER COLUMN addresses SET DEFAULT '[]'::jsonb,   ALTER COLUMN addresses SET NOT NULL;
-ALTER TABLE clients     ALTER COLUMN notes_log SET DEFAULT '[]'::jsonb,   ALTER COLUMN notes_log SET NOT NULL;
+UPDATE clients          SET tags       = '{}'           WHERE tags       IS NULL--;;
+UPDATE clients          SET addresses  = '[]'::jsonb    WHERE addresses  IS NULL--;;
+UPDATE clients          SET notes_log  = '[]'::jsonb    WHERE notes_log  IS NULL--;;
+ALTER TABLE clients     ALTER COLUMN tags      SET DEFAULT '{}',          ALTER COLUMN tags      SET NOT NULL--;;
+ALTER TABLE clients     ALTER COLUMN addresses SET DEFAULT '[]'::jsonb,   ALTER COLUMN addresses SET NOT NULL--;;
+ALTER TABLE clients     ALTER COLUMN notes_log SET DEFAULT '[]'::jsonb,   ALTER COLUMN notes_log SET NOT NULL--;;
 
-UPDATE vendors          SET tags       = '{}'           WHERE tags       IS NULL;
-UPDATE vendors          SET contacts   = '[]'::jsonb    WHERE contacts   IS NULL;
-UPDATE vendors          SET rate_cards = '[]'::jsonb    WHERE rate_cards IS NULL;
-ALTER TABLE vendors     ALTER COLUMN tags       SET DEFAULT '{}',         ALTER COLUMN tags       SET NOT NULL;
-ALTER TABLE vendors     ALTER COLUMN contacts   SET DEFAULT '[]'::jsonb,  ALTER COLUMN contacts   SET NOT NULL;
-ALTER TABLE vendors     ALTER COLUMN rate_cards SET DEFAULT '[]'::jsonb,  ALTER COLUMN rate_cards SET NOT NULL;
+UPDATE vendors          SET tags       = '{}'           WHERE tags       IS NULL--;;
+UPDATE vendors          SET contacts   = '[]'::jsonb    WHERE contacts   IS NULL--;;
+UPDATE vendors          SET rate_cards = '[]'::jsonb    WHERE rate_cards IS NULL--;;
+ALTER TABLE vendors     ALTER COLUMN tags       SET DEFAULT '{}',         ALTER COLUMN tags       SET NOT NULL--;;
+ALTER TABLE vendors     ALTER COLUMN contacts   SET DEFAULT '[]'::jsonb,  ALTER COLUMN contacts   SET NOT NULL--;;
+ALTER TABLE vendors     ALTER COLUMN rate_cards SET DEFAULT '[]'::jsonb,  ALTER COLUMN rate_cards SET NOT NULL--;;
 
-UPDATE bookings         SET tasks         = '[]'::jsonb WHERE tasks         IS NULL;
-UPDATE bookings         SET menu_summary  = '{}'::jsonb WHERE menu_summary  IS NULL;
-UPDATE bookings         SET staffing      = '{}'::jsonb WHERE staffing      IS NULL;
-ALTER TABLE bookings    ALTER COLUMN tasks        SET DEFAULT '[]'::jsonb, ALTER COLUMN tasks        SET NOT NULL;
-ALTER TABLE bookings    ALTER COLUMN menu_summary SET DEFAULT '{}'::jsonb, ALTER COLUMN menu_summary SET NOT NULL;
-ALTER TABLE bookings    ALTER COLUMN staffing     SET DEFAULT '{}'::jsonb, ALTER COLUMN staffing     SET NOT NULL;
+UPDATE bookings         SET tasks         = '[]'::jsonb WHERE tasks         IS NULL--;;
+UPDATE bookings         SET menu_summary  = '{}'::jsonb WHERE menu_summary  IS NULL--;;
+UPDATE bookings         SET staffing      = '{}'::jsonb WHERE staffing      IS NULL--;;
+ALTER TABLE bookings    ALTER COLUMN tasks        SET DEFAULT '[]'::jsonb, ALTER COLUMN tasks        SET NOT NULL--;;
+ALTER TABLE bookings    ALTER COLUMN menu_summary SET DEFAULT '{}'::jsonb, ALTER COLUMN menu_summary SET NOT NULL--;;
+ALTER TABLE bookings    ALTER COLUMN staffing     SET DEFAULT '{}'::jsonb, ALTER COLUMN staffing     SET NOT NULL--;;
 
-UPDATE purchase_orders  SET items = '[]'::jsonb WHERE items IS NULL;
-ALTER TABLE purchase_orders ALTER COLUMN items SET DEFAULT '[]'::jsonb, ALTER COLUMN items SET NOT NULL;
+UPDATE purchase_orders  SET items = '[]'::jsonb WHERE items IS NULL--;;
+ALTER TABLE purchase_orders ALTER COLUMN items SET DEFAULT '[]'::jsonb, ALTER COLUMN items SET NOT NULL--;;
 
-UPDATE invoices         SET items = '[]'::jsonb WHERE items IS NULL;
-ALTER TABLE invoices    ALTER COLUMN items SET DEFAULT '[]'::jsonb, ALTER COLUMN items SET NOT NULL;
+UPDATE invoices         SET items = '[]'::jsonb WHERE items IS NULL--;;
+ALTER TABLE invoices    ALTER COLUMN items SET DEFAULT '[]'::jsonb, ALTER COLUMN items SET NOT NULL--;;

@@ -66,11 +66,14 @@
 		<!-- Hibernate's JacksonJsonFormatMapper (used for jsonb columns) is
 		     compiled against Jackson 2; without this module, java.time.Instant
 		     fields inside JSONB document records fail to serialize. Spring
-		     Boot 4 ships Jackson 3 by default and doesn't pull this in
-		     transitively. JpaJsonConfig wires it onto Hibernate's mapper. -->
+		     Boot 4 ships Jackson 3 by default and doesn't manage this
+		     legacy artifact, so the version is pinned explicitly to match
+		     the jackson-databind 2.x already on the runtime classpath via
+		     other transitive deps. JpaJsonConfig wires it into Hibernate. -->
 		<dependency>
 			<groupId>com.fasterxml.jackson.datatype</groupId>
 			<artifactId>jackson-datatype-jsr310</artifactId>
+			<version>2.21.2</version>
 		</dependency>
 
 		<!-- JWT -->

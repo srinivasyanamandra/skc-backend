@@ -14,6 +14,10 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    # Run schema.sql AFTER Hibernate creates/updates entity-driven columns
+    # so the migration block can backfill nulls + add NOT NULL constraints
+    # on JSONB / TEXT[] columns Hibernate added without defaults.
+    defer-datasource-initialization: true
     open-in-view: false
     show-sql: true
     properties:
@@ -21,6 +25,16 @@ spring:
         jdbc:
           time_zone: UTC
         format_sql: true
+
+  # Auto-apply schema.sql on every boot. The script is rerun-safe (idempotent
+  # ALTERs / DROPs guarded by IF EXISTS / IF NOT EXISTS), so it's cheap to
+  # re-run and catches any drift between the entity model and the DB.
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      continue-on-error: false
+      separator: "--;;"
   
   mail:
     host: ${MAIL_HOST:smtp.hostinger.com}

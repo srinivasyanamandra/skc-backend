@@ -18,6 +18,11 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    # Defer schema.sql until after Hibernate has reconciled entity-driven
+    # DDL — this lets schema.sql do post-migration cleanup (backfill nulls,
+    # promote columns to NOT NULL, drop legacy child tables) on top of the
+    # columns Hibernate just added.
+    defer-datasource-initialization: true
     show-sql: false
     properties:
       hibernate:
@@ -27,6 +32,17 @@ spring:
           batch_size: 20
         order_inserts: true
         order_updates: true
+
+  # Auto-apply schema.sql at startup. The script is fully idempotent
+  # (CREATE/ALTER/DROP guarded by IF [NOT] EXISTS, UPDATE guarded by row
+  # existence). On the first boot of a new deploy this performs the
+  # consolidation migration; subsequent boots are effectively no-ops.
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      continue-on-error: false
+      separator: "--;;"
   
   mail:
     host: ${MAIL_HOST:smtp.hostinger.com}
