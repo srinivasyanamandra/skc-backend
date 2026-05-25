@@ -95,6 +95,23 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
+    /** Document Studio asset uploads can blow past the multipart limit
+     *  (5MB). Spring throws this before our service sees the request, so
+     *  we translate to a clean 413 with the same envelope the rest of the
+     *  API uses. */
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSizeExceeded(
+            org.springframework.web.multipart.MaxUploadSizeExceededException ex, WebRequest request) {
+        String traceId = UUID.randomUUID().toString();
+        log.warn("Upload too large [{}]: {}", traceId, ex.getMessage());
+        ErrorResponse error = ErrorResponse.builder()
+                .error("PAYLOAD_TOO_LARGE")
+                .message("File is too large. Maximum size is 5MB.")
+                .traceId(traceId)
+                .build();
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(error);
+    }
+
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ErrorResponse> handleResponseStatusException(ResponseStatusException ex, WebRequest request) {
         String traceId = UUID.randomUUID().toString();

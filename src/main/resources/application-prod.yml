@@ -87,6 +87,21 @@ server:
     max-connections: 8192
     accept-count: 100
 
+# Multipart limits for Document Studio asset uploads (logos, signatures,
+# QR codes). Mirrors the local profile so prod uploads behave identically.
+spring.servlet.multipart:
+  enabled: true
+  max-file-size: 5MB
+  max-request-size: 6MB
+
+# Document Studio asset storage. On Render's free tier the container
+# filesystem is ephemeral — point STUDIO_ASSETS_DIR at a persistent disk
+# (Render Disk add-on) before relying on uploaded assets in production.
+studio:
+  assets:
+    dir: ${STUDIO_ASSETS_DIR:/app/uploads}
+    public-base: /uploads
+
 logging:
   level:
     root: INFO

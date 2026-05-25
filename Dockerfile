@@ -1,62 +1,68 @@
 # ============================================================================
 # Multi-stage Dockerfile for Sri Karthikeya Caterers Backend
-# Optimized for Render.com deployment with security and performance best practices
+#
+# Document Studio note: the runtime stage was switched from Alpine (musl)
+# to Ubuntu jammy (glibc) so Playwright's bundled Chromium can run. The
+# image grew from ~200MB to ~700MB as a result; trade-off accepted because
+# the alternative (apk-installed chromium + skip-download workarounds) is
+# more fragile across Playwright versions.
 # ============================================================================
 
 # ============================================================================
 # Stage 1: Build Stage
-# Uses Maven to compile and package the Spring Boot application
+# Uses Maven to compile and package the Spring Boot application.
+# Kept on Alpine since the build doesn't need glibc.
 # ============================================================================
 FROM maven:3.9.6-eclipse-temurin-21-alpine AS builder
 
-# Set working directory
 WORKDIR /build
 
-# Copy Maven wrapper and pom.xml first (for better layer caching)
+# Copy Maven wrapper and pom.xml first for layer caching
 COPY .mvn/ .mvn/
 COPY mvnw pom.xml ./
 
-# Download dependencies (cached layer if pom.xml doesn't change)
 RUN ./mvnw dependency:go-offline -B
 
-# Copy source code
 COPY src/ ./src/
 
-# Build the application (skip tests for faster builds, run tests in CI/CD)
 RUN ./mvnw clean package -DskipTests -B && \
-    # Extract the built JAR name for easier reference
     mkdir -p target/dependency && \
     cd target/dependency && \
     jar -xf ../*.jar
 
 # ============================================================================
 # Stage 2: Runtime Stage
-# Minimal JRE image for running the application
+# Ubuntu jammy (glibc) so Playwright's headless Chromium runs without
+# wrestling musl. Native Chromium deps installed via apt below.
 # ============================================================================
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jre-jammy
 
-# Metadata
 LABEL maintainer="srinivas.yanamandra04@gmail.com"
 LABEL description="Sri Karthikeya Caterers - Spring Boot Backend API"
-LABEL version="1.0.0"
+LABEL version="1.1.0"
 
-# Install required packages and security updates
-RUN apk update && \
-    apk upgrade && \
-    apk add --no-cache \
-    curl \
-    tzdata \
-    && rm -rf /var/cache/apk/*
+# Native dependencies Chromium needs at runtime. The full list comes from
+# Playwright's own dependency declaration for Ubuntu jammy. Kept explicit
+# (rather than apt-get -y install $(playwright cli deps)) so a network
+# blip during build doesn't produce a half-installed image.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl tzdata ca-certificates \
+        libnss3 libnspr4 libdbus-1-3 \
+        libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 \
+        libcups2 libdrm2 libxkbcommon0 libxcomposite1 \
+        libxdamage1 libxfixes3 libxrandr2 libgbm1 \
+        libpangocairo-1.0-0 libpango-1.0-0 libcairo2 \
+        libasound2 fonts-liberation && \
+    rm -rf /var/lib/apt/lists/*
 
-# Set timezone to IST (Indian Standard Time)
+# Timezone
 ENV TZ=Asia/Kolkata
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S appuser -G appgroup
+# Non-root user
+RUN groupadd -g 1001 appgroup && \
+    useradd -u 1001 -g appgroup -m -s /bin/bash appuser
 
-# Set working directory
 WORKDIR /app
 
 # Copy the extracted JAR layers from builder stage
@@ -64,17 +70,18 @@ COPY --from=builder --chown=appuser:appgroup /build/target/dependency/BOOT-INF/l
 COPY --from=builder --chown=appuser:appgroup /build/target/dependency/META-INF /app/META-INF
 COPY --from=builder --chown=appuser:appgroup /build/target/dependency/BOOT-INF/classes /app
 
-# Switch to non-root user
+# Install Playwright's Chromium *into the image* so first-request render
+# doesn't have to download 150MB. The CLI is bundled inside the Playwright
+# Java JAR pulled in by Maven.
 USER appuser
+ENV PLAYWRIGHT_BROWSERS_PATH=/home/appuser/.cache/ms-playwright
+RUN java -cp "/app:/app/lib/*" com.microsoft.playwright.CLI install chromium
 
-# Expose port (Render will override this with PORT env variable)
 EXPOSE 8080
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8080}/actuator/health || exit 1
 
-# JVM optimization flags for containerized environments
 ENV JAVA_OPTS="-XX:+UseContainerSupport \
     -XX:MaxRAMPercentage=75.0 \
     -XX:InitialRAMPercentage=50.0 \
@@ -84,8 +91,6 @@ ENV JAVA_OPTS="-XX:+UseContainerSupport \
     -Djava.security.egd=file:/dev/./urandom \
     -Dfile.encoding=UTF-8"
 
-# Spring Boot production profile
 ENV SPRING_PROFILES_ACTIVE=prod
 
-# Run the application using the exploded JAR for faster startup
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -cp /app:/app/lib/* syncqubits.ai.skc.SkcApplication"]

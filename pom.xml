@@ -102,6 +102,17 @@
 			<version>8.10.1</version>
 		</dependency>
 
+		<!-- Document Studio: server-side HTML → PDF rendering. Drives the
+		     headless Chromium that turns the canonical letterhead template
+		     (and, later, menus / proposals / invoices) into a PDF byte
+		     stream. Requires `playwright install chromium` once per host;
+		     the Dockerfile handles this at build time. -->
+		<dependency>
+			<groupId>com.microsoft.playwright</groupId>
+			<artifactId>playwright</artifactId>
+			<version>1.49.0</version>
+		</dependency>
+
 		<!-- Utilities -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>

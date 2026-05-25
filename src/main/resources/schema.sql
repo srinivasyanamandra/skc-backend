@@ -719,3 +719,116 @@ ALTER TABLE purchase_orders ALTER COLUMN items SET DEFAULT '[]'::jsonb, ALTER CO
 
 UPDATE invoices         SET items = '[]'::jsonb WHERE items IS NULL--;;
 ALTER TABLE invoices    ALTER COLUMN items SET DEFAULT '[]'::jsonb, ALTER COLUMN items SET NOT NULL--;;
+
+-- ============================================================================
+-- Document Studio: Branding Profile (singleton)
+--
+-- A single row holds every brand setting used across generated documents
+-- (letterheads, menus, invoices, POs, proposals). Singleton enforced at the
+-- service layer (getOrCreate) — exposing CRUD here would invite drift across
+-- multiple rows. Asset URLs (logos, QR codes, signatures) land in slice 3
+-- when the asset uploader exists; until then the relevant columns stay
+-- nullable so the form can save partial state without lying.
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS branding_profiles (
+    id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    brand_name         VARCHAR(160),
+    tagline            VARCHAR(200),
+    established_year   INTEGER,
+
+    phone_primary      VARCHAR(20),
+    phone_secondary    VARCHAR(20),
+    email              VARCHAR(255),
+    website            VARCHAR(255),
+
+    address_line1      VARCHAR(200),
+    address_line2      VARCHAR(200),
+    city               VARCHAR(80),
+    state              VARCHAR(80),
+    pincode            VARCHAR(20),
+
+    primary_color      VARCHAR(16),
+    secondary_color    VARCHAR(16),
+    accent_color       VARCHAR(16),
+    ink_color          VARCHAR(16),
+
+    display_font       VARCHAR(120),
+    body_font          VARCHAR(120),
+
+    gstin              VARCHAR(32),
+    fssai_license      VARCHAR(40),
+    cin                VARCHAR(40),
+    pan_number         VARCHAR(20),
+
+    brand_promise      TEXT,
+    legal_disclaimer   TEXT,
+
+    social_instagram   VARCHAR(255),
+    social_facebook    VARCHAR(255),
+    social_youtube     VARCHAR(255),
+
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+)--;;
+
+CREATE INDEX IF NOT EXISTS idx_branding_profiles_updated ON branding_profiles(updated_at DESC)--;;
+
+-- ============================================================================
+-- Document Studio: Brand Assets
+--
+-- Uploaded image files (logos, monogram, watermark, signatures, QR codes,
+-- decorative motifs). The binary lives on local disk under
+-- studio.assets.dir; this table only records metadata + the public URL.
+-- One row per uploaded file.
+--
+-- "role" is a soft tag — many assets can share the same role and the
+-- branding profile picks one of them. Free-form on purpose so admins can
+-- add roles we didn't anticipate (e.g. SEASONAL_BANNER, FESTIVAL_MOTIF)
+-- without a schema migration.
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS brand_assets (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    filename        VARCHAR(200) NOT NULL,
+    original_name   VARCHAR(255) NOT NULL,
+    content_type    VARCHAR(80)  NOT NULL,
+    size_bytes      BIGINT       NOT NULL,
+    role            VARCHAR(40)  NOT NULL DEFAULT 'DECORATIVE',
+    alt_text        VARCHAR(255),
+    public_url      VARCHAR(500) NOT NULL,
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT now()
+)--;;
+
+CREATE INDEX IF NOT EXISTS idx_brand_assets_role    ON brand_assets(role)--;;
+CREATE INDEX IF NOT EXISTS idx_brand_assets_created ON brand_assets(created_at DESC)--;;
+
+-- ============================================================================
+-- Document Studio: Generated Documents log
+--
+-- One row per rendered PDF (letterhead, menu, invoice, proposal, PO). Drives
+-- the Print Center's "Recent documents" surface and gives us re-download
+-- without re-rendering. The PDF bytes themselves are NOT stored here —
+-- they live on disk under studio.assets.dir/documents/, addressed by
+-- `pdf_filename`. Keeps the row small and lets the same backup strategy
+-- as brand_assets cover both.
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS generated_documents (
+    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    document_type     VARCHAR(40)  NOT NULL,   -- letterhead, menu, invoice, proposal, po, welcome_note
+    document_number   VARCHAR(60),             -- human-readable id; null for ad-hoc renders
+    pdf_filename      VARCHAR(200) NOT NULL,
+    pdf_url           VARCHAR(500) NOT NULL,
+    size_bytes        BIGINT       NOT NULL,
+    template_version  VARCHAR(40)  NOT NULL DEFAULT 'v1',
+    rendered_by_email VARCHAR(255),
+    branding_id       UUID         REFERENCES branding_profiles(id) ON DELETE SET NULL,
+    booking_id        UUID,                    -- optional link; bookings table FK omitted to keep this module decoupled
+    client_id         UUID,
+    created_at        TIMESTAMPTZ  NOT NULL DEFAULT now()
+)--;;
+
+CREATE INDEX IF NOT EXISTS idx_generated_documents_type    ON generated_documents(document_type)--;;
+CREATE INDEX IF NOT EXISTS idx_generated_documents_created ON generated_documents(created_at DESC)--;;

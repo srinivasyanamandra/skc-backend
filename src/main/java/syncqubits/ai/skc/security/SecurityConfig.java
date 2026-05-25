@@ -36,6 +36,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/subscribe").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
+                        /* Document Studio brand assets (logos, signatures,
+                           QR codes) are served as public static files so
+                           browsers can render them inside <img> tags — image
+                           requests don't carry the JWT. Auth is enforced on
+                           the upload/delete endpoints under /api/admin/. */
+                        .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/api/admin/**").authenticated()
                         .anyRequest().denyAll()
                 )

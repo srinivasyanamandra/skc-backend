@@ -71,6 +71,14 @@ server:
     include-message: always
     include-binding-errors: always
 
+# Multipart limits for Document Studio asset uploads (logos, signatures, QR
+# codes). Default 1MB is too tight for retina logos; cap at 5MB so admins
+# can't accidentally upload a raw camera photo.
+spring.servlet.multipart:
+  enabled: true
+  max-file-size: 5MB
+  max-request-size: 6MB
+
 cors:
   allowed-origins:
     - http://localhost:3000
@@ -100,6 +108,14 @@ campaign:
   default-batch-size: 50
   scheduler:
     poll-interval-ms: 30000   # how often the scheduler scans for queued campaigns
+
+# Document Studio asset storage. Files land on local disk under this dir
+# and are served back via a static handler at /uploads/**. On Render free
+# tier this dir is ephemeral; swap for S3/R2 before going to production.
+studio:
+  assets:
+    dir: ${STUDIO_ASSETS_DIR:./uploads}
+    public-base: /uploads
 
 mail:
   from: ${MAIL_FROM:info@srikarthikeyacaterers.in}
