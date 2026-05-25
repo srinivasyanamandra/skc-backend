@@ -73,6 +73,18 @@ COPY --from=builder --chown=appuser:appgroup /build/target/dependency/BOOT-INF/c
 # Install Playwright's Chromium *into the image* so first-request render
 # doesn't have to download 150MB. The CLI is bundled inside the Playwright
 # Java JAR pulled in by Maven.
+#
+# Spring Boot 4 ships META-INF/services/java.nio.file.spi.FileSystemProvider
+# inside the fat jar, registering NestedFileSystemProvider for reading
+# nested jars. We're running the exploded layout, so the loader classes
+# aren't on the classpath — and Playwright's CLI calls
+# FileSystemProvider.installedProviders() during startup, which fails hard
+# on the missing provider class (ServiceConfigurationError). Remove that
+# stale SPI registration before running anything that touches NIO. Safe at
+# runtime because the exploded layout has plain JARs in /app/lib and never
+# uses nested-jar URIs.
+RUN rm -f /app/META-INF/services/java.nio.file.spi.FileSystemProvider
+
 USER appuser
 ENV PLAYWRIGHT_BROWSERS_PATH=/home/appuser/.cache/ms-playwright
 RUN java -cp "/app:/app/lib/*" com.microsoft.playwright.CLI install chromium
